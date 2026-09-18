@@ -1,0 +1,22 @@
+// Global Constants for LMS System
+
+export const ROLES = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  ADMIN: 'ADMIN',
+  INSTRUCTOR: 'INSTRUCTOR',
+  STUDENT: 'STUDENT',
+};
+
+export const STATUSES = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  SUSPENDED: 'SUSPENDED',
+  ARCHIVED: 'ARCHIVED',
+};
+
+export const PAYMENT_STATUSES = {
+  PENDING: 'PENDING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  REFUNDED: 'REFUNDED',
+};

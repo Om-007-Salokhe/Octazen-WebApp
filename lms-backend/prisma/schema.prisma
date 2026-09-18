@@ -1,0 +1,199 @@
+// Prisma Schema for LMS Backend
+// Defines all tables: Admin, Student, Device, Course, Module, Video, Material, Enrollment, Progress, Payment, AuditLog
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  INSTRUCTOR
+  STUDENT
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Admin {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  fullName     String
+  role         Role        @default(ADMIN)
+  status       Status      @default(ACTIVE)
+  lastLoginAt  DateTime?
+  auditLogs    AuditLog[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("admins")
+}
+
+model Student {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  passwordHash   String
+  fullName       String
+  phoneNumber    String?
+  status         Status       @default(ACTIVE)
+  devices        Device[]
+  enrollments    Enrollment[]
+  progress       Progress[]
+  payments       Payment[]
+  lastActiveAt   DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("students")
+}
+
+model Device {
+  id             String    @id @default(uuid())
+  studentId      String
+  student        Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  deviceFingerprint String
+  deviceName     String?
+  ipAddress      String?
+  userAgent      String?
+  isTrusted      Boolean   @default(true)
+  lastUsedAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+
+  @@unique([studentId, deviceFingerprint])
+  @@map("devices")
+}
+
+model Course {
+  id           String       @id @default(uuid())
+  title        String
+  slug         String       @unique
+  description  String?
+  thumbnailUrl String?
+  price        Decimal      @default(0.0) @db.Decimal(10, 2)
+  isPublished  Boolean      @default(false)
+  modules      CourseModule[]
+  enrollments  Enrollment[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("courses")
+}
+
+model CourseModule {
+  id          String     @id @default(uuid())
+  courseId    String
+  course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  orderIndex  Int        @default(0)
+  videos      Video[]
+  materials   Material[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("course_modules")
+}
+
+model Video {
+  id             String       @id @default(uuid())
+  moduleId       String
+  module         CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  bunnyVideoId   String       @unique
+  durationSeconds Int         @default(0)
+  orderIndex     Int          @default(0)
+  progress       Progress[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("videos")
+}
+
+model Material {
+  id          String       @id @default(uuid())
+  moduleId    String
+  module      CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title       String
+  fileUrl     String
+  fileType    String?
+  fileSizeBytes BigInt?
+  orderIndex  Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("materials")
+}
+
+model Enrollment {
+  id         String     @id @default(uuid())
+  studentId  String
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId   String
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrolledAt DateTime   @default(now())
+  expiresAt  DateTime?
+  status     Status     @default(ACTIVE)
+
+  @@unique([studentId, courseId])
+  @@map("enrollments")
+}
+
+model Progress {
+  id             String    @id @default(uuid())
+  studentId      String
+  student        Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  videoId        String
+  video          Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  watchedSeconds Int       @default(0)
+  isCompleted    Boolean   @default(false)
+  lastWatchedAt  DateTime  @default(now())
+
+  @@unique([studentId, videoId])
+  @@map("progress")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  studentId     String
+  student       Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  amount        Decimal       @db.Decimal(10, 2)
+  currency      String        @default("INR")
+  transactionId String        @unique
+  status        PaymentStatus @default(PENDING)
+  paymentMethod String?
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("payments")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  adminId   String?
+  admin     Admin?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  action    String
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}

@@ -1,0 +1,14 @@
+{
+  "name": "octazen-workspace-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Octazen Aegis Academy LMS Workspace Root",
+  "scripts": {
+    "dev": "npm run dev --prefix octazen-app",
+    "build": "npm run build --prefix octazen-app",
+    "start": "npm run dev --prefix octazen-app",
+    "preview": "npm run preview --prefix octazen-app",
+    "backend": "npm run dev --prefix lms-backend",
+    "backend:start": "npm start --prefix lms-backend"
+  }
+}

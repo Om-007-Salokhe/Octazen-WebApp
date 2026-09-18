@@ -1,0 +1,22 @@
+# Environment variables
+.env
+.env.*
+*.env
+*.env.local
+
+# Dependency directories
+node_modules/
+
+# Uploads
+Uploads/
+uploads/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS & Editor
+.DS_Store
+.vscode/
+.idea/

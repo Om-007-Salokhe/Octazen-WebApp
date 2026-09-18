@@ -1,0 +1,21 @@
+# LMS Backend Architecture Rules
+
+You are working on an institutional enterprise LMS backend designed for secure proctoring, media delivery, and role-based access.
+
+## Architecture Guidelines:
+1. **Module Structure**:
+   - Each domain is isolated under `src/modules/<module-name>/`.
+   - Each module contains: `<module>.controller.js`, `<module>.service.js`, `<module>.routes.js`, and `<module>.schema.js`.
+2. **Database & ORM**:
+   - Use Prisma (`prisma/schema.prisma`) for all database operations.
+   - Use `src/config/db.js` instance everywhere.
+3. **Authentication & Security**:
+   - Admin routes must use `adminAuth` middleware.
+   - Student routes must use `studentAuth` middleware (checks JWT + registered device fingerprint).
+   - Validate request inputs using `validate(schema)` with Zod schemas.
+4. **Media & Bunny.net**:
+   - ALL Bunny.net API calls must go through `src/services/bunny.service.js`.
+   - Stream URLs must be signed via `src/services/signedUrl.service.js`.
+5. **Error Handling**:
+   - Use `errorHandler.js` as the single place that formats errors.
+   - Always return standardized JSON using `src/utils/response.js`.
