@@ -16,13 +16,13 @@ const rawEnv = {
   
   // Bunny.net configuration
   BUNNY_STORAGE_ZONE_NAME: process.env.BUNNY_STORAGE_ZONE_NAME || '',
-  BUNNY_API_KEY: process.env.BUNNY_API_KEY || process.env.BUNNY_STREAM_API_KEY || '',
-  BUNNY_STREAM_API_KEY: process.env.BUNNY_STREAM_API_KEY || process.env.BUNNY_API_KEY || '',
+  BUNNY_API_KEY: process.env.BUNNY_API_KEY || process.env.BUNNY_STREAM_API_KEY || 'ba0a7b46-02f8-4712-bf62271f2b54-5861-4b98',
+  BUNNY_STREAM_API_KEY: process.env.BUNNY_STREAM_API_KEY || process.env.BUNNY_API_KEY || 'ba0a7b46-02f8-4712-bf62271f2b54-5861-4b98',
   BUNNY_STORAGE_HOSTNAME: process.env.BUNNY_STORAGE_HOSTNAME || 'storage.bunnycdn.com',
   BUNNY_PULL_ZONE_URL: process.env.BUNNY_PULL_ZONE_URL || '',
-  BUNNY_CDN_HOSTNAME: process.env.BUNNY_CDN_HOSTNAME || 'vz-d51ed155-bdd.b-cdn.net',
-  BUNNY_TOKEN_AUTHENTICATION_KEY: process.env.BUNNY_TOKEN_AUTHENTICATION_KEY || process.env.BUNNY_TOKEN_SECURITY_KEY || '',
-  BUNNY_STREAM_LIBRARY_ID: process.env.BUNNY_STREAM_LIBRARY_ID || '754518',
+  BUNNY_CDN_HOSTNAME: process.env.BUNNY_CDN_HOSTNAME || 'vz-b294700e-43d.b-cdn.net',
+  BUNNY_TOKEN_AUTHENTICATION_KEY: process.env.BUNNY_TOKEN_AUTHENTICATION_KEY || process.env.BUNNY_TOKEN_SECURITY_KEY || 'f94a8812-a9f2-43e4-892c-8d279ada158a',
+  BUNNY_STREAM_LIBRARY_ID: process.env.BUNNY_STREAM_LIBRARY_ID || '756353',
 
   // Client URL
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
@@ -40,13 +40,13 @@ const envSchema = z.object({
   
   // Bunny.net configuration
   BUNNY_STORAGE_ZONE_NAME: z.string().optional().default(''),
-  BUNNY_API_KEY: z.string().optional().default(''),
-  BUNNY_STREAM_API_KEY: z.string().optional().default(''),
+  BUNNY_API_KEY: z.string().optional().default('ba0a7b46-02f8-4712-bf62271f2b54-5861-4b98'),
+  BUNNY_STREAM_API_KEY: z.string().optional().default('ba0a7b46-02f8-4712-bf62271f2b54-5861-4b98'),
   BUNNY_STORAGE_HOSTNAME: z.string().optional().default('storage.bunnycdn.com'),
   BUNNY_PULL_ZONE_URL: z.string().optional().default(''),
-  BUNNY_CDN_HOSTNAME: z.string().optional().default('vz-d51ed155-bdd.b-cdn.net'),
-  BUNNY_TOKEN_AUTHENTICATION_KEY: z.string().optional().default(''),
-  BUNNY_STREAM_LIBRARY_ID: z.string().optional().default('754518'),
+  BUNNY_CDN_HOSTNAME: z.string().optional().default('vz-b294700e-43d.b-cdn.net'),
+  BUNNY_TOKEN_AUTHENTICATION_KEY: z.string().optional().default('f94a8812-a9f2-43e4-892c-8d279ada158a'),
+  BUNNY_STREAM_LIBRARY_ID: z.string().optional().default('756353'),
 
   // Client URL
   CLIENT_URL: z.string().default('http://localhost:5173'),

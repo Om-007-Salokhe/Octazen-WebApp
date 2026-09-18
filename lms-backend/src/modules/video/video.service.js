@@ -37,6 +37,9 @@ export const videoService = {
         bunnyMap.set(bv.guid || bv.bunny_video_id, bv);
       });
 
+      const defaultLibraryId = env.BUNNY_STREAM_LIBRARY_ID || '756353';
+      const defaultCdnHost = env.BUNNY_CDN_HOSTNAME || 'vz-b294700e-43d.b-cdn.net';
+
       // Format db videos
       const formattedDb = (dbVideos || []).map((v) => {
         const bunnyInfo = bunnyMap.get(v.bunny_video_id);
@@ -44,6 +47,8 @@ export const videoService = {
         const mins = Math.floor(durationSec / 60);
         const secs = durationSec % 60;
         const durationFormatted = durationSec > 0 ? `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}` : '00:30';
+        const libId = v.bunny_library_id || defaultLibraryId;
+        const thumb = v.thumbnail_url || bunnyInfo?.thumbnail_url || `https://${defaultCdnHost}/${v.bunny_video_id}/thumbnail.jpg`;
 
         return {
           id: String(v.id),
@@ -52,13 +57,13 @@ export const videoService = {
           title: v.title,
           description: v.description || '',
           bunny_video_id: v.bunny_video_id,
-          bunny_library_id: v.bunny_library_id || '754518',
+          bunny_library_id: String(libId),
           duration_seconds: durationSec,
           duration: durationFormatted,
           status: v.status === 'ready' ? 'Ready' : (v.status === 'failed' ? 'Failed' : 'Processing'),
-          thumbnail_url: v.thumbnail_url || bunnyInfo?.thumbnail_url || `https://vz-d51ed155-bdd.b-cdn.net/${v.bunny_video_id}/thumbnail.jpg`,
-          thumbnail: v.thumbnail_url || bunnyInfo?.thumbnail_url || `https://vz-d51ed155-bdd.b-cdn.net/${v.bunny_video_id}/thumbnail.jpg`,
-          embedUrl: `https://iframe.mediadelivery.net/embed/${v.bunny_library_id || '754518'}/${v.bunny_video_id}?autoplay=true&preload=true`,
+          thumbnail_url: thumb,
+          thumbnail: thumb,
+          embedUrl: `https://iframe.mediadelivery.net/embed/${libId}/${v.bunny_video_id}?autoplay=true&preload=true`,
         };
       });
 

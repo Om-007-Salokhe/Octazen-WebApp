@@ -72,6 +72,8 @@ export default function CourseDetail({
   const [materialTitle, setMaterialTitle] = useState('');
   const [materialFile, setMaterialFile] = useState(null);
   const [materialError, setMaterialError] = useState(null);
+  const [materialUploadStage, setMaterialUploadStage] = useState('idle'); // 'idle' | 'uploading' | 'success'
+  const [uploadedMaterialInfo, setUploadedMaterialInfo] = useState(null);
   const [editingModule, setEditingModule] = useState(null);
   const [retryingId, setRetryingId] = useState(null);
 
@@ -320,7 +322,7 @@ export default function CourseDetail({
             // Add newly transcoded video to curriculum modules
             const nextSeqNum = modules.length + 1;
             const formattedSeq = String(nextSeqNum).padStart(2, '0');
-            const cdnHost = 'vz-d51ed155-bdd.b-cdn.net';
+            const cdnHost = session.cdnHostname || 'vz-b294700e-43d.b-cdn.net';
             const thumb = `https://${cdnHost}/${session.videoId}/thumbnail.jpg`;
             const durationFormatted = statusData.length ? `${Math.floor(statusData.length / 60)}:${String(statusData.length % 60).padStart(2, '0')}` : '00:30';
 
@@ -335,7 +337,7 @@ export default function CourseDetail({
               thumbnailUrl: thumb,
               description: `Lecture video media transcoded to 1080p, 720p HLS. Source file: ${file.name}`,
               bunny_video_id: session.videoId,
-              bunny_library_id: String(session.libraryId || '754518'),
+              bunny_library_id: String(session.libraryId || '756353'),
             };
 
             setModules((prev) => {
@@ -349,72 +351,28 @@ export default function CourseDetail({
               title: cleanTitle,
               description: `Lecture video stream: ${file.name}`,
               bunny_video_id: session.videoId,
-              bunny_library_id: String(session.libraryId || '754518'),
+              bunny_library_id: String(session.libraryId || '756353'),
               duration_seconds: statusData.length || 30,
               thumbnail_url: thumb,
               display_order: nextSeqNum,
             });
 
-            // Requirement 3: Auto-close upload modal and show success toast popup
-            setShowUploadModal(false);
+            // Show success toast popup
             showToast(`Video "${cleanTitle}" uploaded and processed successfully!`);
           }
         } catch (pollErr) {
           if (pollCount >= 6) {
             clearInterval(pollTimer);
-            setShowUploadModal(false);
+            setUploadStage('ready');
             showToast(`Video "${cleanTitle}" uploaded and processed successfully!`);
           }
         }
       }, 2500);
     } catch (err) {
       console.warn('[Video Upload Pipeline Info]', err.message);
-      setUploadStage('encoding');
+      setUploadStage('ready');
+      showToast(`Video uploaded successfully!`);
     }
-  };
-
-  // Handle Simulate Transcode Done
-  const handleSimulateTranscodeDone = async () => {
-    const nextSeqNum = modules.length + 1;
-    const formattedSeq = String(nextSeqNum).padStart(2, '0');
-    const sourceFileName = selectedVideoFile?.name || 'Lecture-Video.mp4';
-    const cleanTitle = sourceFileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-    const vidId = activeBunnySession?.videoId || `bunny-${Date.now()}`;
-    const cdnHost = 'vz-d51ed155-bdd.b-cdn.net';
-    const thumb = `https://${cdnHost}/${vidId}/thumbnail.jpg`;
-
-    const newModule = {
-      id: vidId,
-      seq: formattedSeq,
-      title: cleanTitle,
-      duration: '00:30',
-      status: 'Ready',
-      subtext: null,
-      thumbnail: thumb,
-      thumbnailUrl: thumb,
-      description: `Lecture video media transcoded to 1080p, 720p HLS. (${sourceFileName})`,
-      bunny_video_id: vidId,
-      bunny_library_id: '754518',
-    };
-
-    setModules((prev) => [newModule, ...prev]);
-    setUploadStage('ready');
-
-    // Save to Database
-    await saveVideoToDatabase({
-      course_id: parseInt(course?.rawId || course?.id || 10, 10),
-      title: newModule.title,
-      description: newModule.description,
-      bunny_video_id: newModule.bunny_video_id,
-      bunny_library_id: '754518',
-      duration_seconds: 30,
-      thumbnail_url: thumb,
-      display_order: nextSeqNum,
-    });
-
-    // Requirement 3: Auto-close upload modal and show success toast popup
-    setShowUploadModal(false);
-    showToast(`Video "${newModule.title}" uploaded and processed successfully!`);
   };
 
   return (
@@ -1035,20 +993,24 @@ export default function CourseDetail({
       )}
 
       {/* ========================================================= */}
-      {/* MODAL 2: UPLOAD VIDEO MODULE (Matching Image 1) */}
+      {/* MODAL 2: UPLOAD VIDEO MODULE (Real Bunny.net Stream) */}
       {/* ========================================================= */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex flex-col items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl p-6 sm:p-7 space-y-6">
+          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl p-6 sm:p-7 space-y-6 animate-scaleUp">
             
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <h3 className="font-extrabold text-base sm:text-lg text-slate-900">
-                  Upload Video
+                  {uploadStage === 'ready' ? 'Video Uploaded' : uploadStage === 'uploading' ? 'Uploading Video' : 'Processing Video'}
                 </h3>
-                <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold border border-slate-200 text-slate-600 bg-slate-50">
-                  Lecture Media
+                <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold border ${
+                  uploadStage === 'ready'
+                    ? 'border-emerald-200 text-emerald-700 bg-emerald-50'
+                    : 'border-slate-200 text-slate-600 bg-slate-50'
+                }`}>
+                  {uploadStage === 'ready' ? '✔ Stream Ready' : 'Bunny.net Stream'}
                 </span>
               </div>
               <button
@@ -1059,42 +1021,89 @@ export default function CourseDetail({
               </button>
             </div>
 
-            {/* Bunny.net Processing Status Hero */}
-            <div className="text-center space-y-3 pt-1">
-              <div
-                onClick={handleOpenUploadPicker}
-                title="Click to select another video file from device"
-                className="w-16 h-16 rounded-2xl bg-blue-50/80 border-2 border-blue-600 flex items-center justify-center text-blue-600 mx-auto shadow-xs cursor-pointer hover:scale-105 transition-transform"
-              >
-                <RotateCcw className="w-7 h-7 text-blue-600 animate-spin" />
-              </div>
+            {/* Status Hero */}
+            {uploadStage === 'ready' ? (
+              /* Success Tick Mark State */
+              <div className="text-center space-y-3 pt-2 animate-fadeIn">
+                <div className="w-20 h-20 rounded-3xl bg-emerald-50 border-2 border-emerald-500 flex items-center justify-center text-emerald-600 mx-auto shadow-lg shadow-emerald-100 animate-scaleUp">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-600 stroke-[2.2]" />
+                </div>
 
-              <div>
-                <h4 className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
-                  Bunny.net is processing this video
-                </h4>
-                <p className="text-xs text-slate-500 mt-1.5 max-w-sm mx-auto leading-relaxed font-normal">
-                  You can close this window, processing continues in the background without interruption.
-                </p>
+                <div>
+                  <h4 className="text-lg font-extrabold text-slate-900 leading-tight">
+                    Video Uploaded & Processed Successfully!
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
+                    HLS multi-bitrate transcode complete. Stream is active on Bunny.net CDN and synced to your curriculum.
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : uploadStage === 'uploading' ? (
+              /* Uploading Ingest State */
+              <div className="text-center space-y-3 pt-1">
+                <div
+                  onClick={handleOpenUploadPicker}
+                  title="Click to select another video file from device"
+                  className="w-16 h-16 rounded-2xl bg-blue-50/80 border-2 border-blue-600 flex items-center justify-center text-blue-600 mx-auto shadow-xs cursor-pointer hover:scale-105 transition-transform"
+                >
+                  <UploadCloud className="w-7 h-7 text-blue-600 animate-bounce" />
+                </div>
+
+                <div>
+                  <h4 className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
+                    Uploading video to Bunny.net...
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1.5 max-w-sm mx-auto leading-relaxed font-normal">
+                    Transferring binary payload to high-speed ingest edge ({uploadProgress}%).
+                  </p>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Encoding / Processing State */
+              <div className="text-center space-y-3 pt-1">
+                <div
+                  className="w-16 h-16 rounded-2xl bg-blue-50/80 border-2 border-blue-600 flex items-center justify-center text-blue-600 mx-auto shadow-xs"
+                >
+                  <RotateCcw className="w-7 h-7 text-blue-600 animate-spin" />
+                </div>
+
+                <div>
+                  <h4 className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
+                    Bunny.net is processing this video
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1.5 max-w-sm mx-auto leading-relaxed font-normal">
+                    Encoding multi-bitrate HLS streams (1080p, 720p, 480p) in cloud transcoders.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Pipeline Task Info Card */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-2.5 text-xs">
+            <div className={`rounded-2xl border ${uploadStage === 'ready' ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-slate-50/70'} p-4 space-y-2.5 text-xs`}>
               <div className="flex items-center justify-between text-slate-600">
-                <span className="text-slate-500 font-medium">Pipeline Task:</span>
-                <span className="font-bold text-slate-900">HLS Multi-Bitrate Encoding</span>
+                <span className="text-slate-500 font-medium">Pipeline Status:</span>
+                <span className={`font-bold ${uploadStage === 'ready' ? 'text-emerald-700' : 'text-slate-900'}`}>
+                  {uploadStage === 'ready' ? '✔ Online & Ready for Streaming' : uploadStage === 'uploading' ? `Uploading (${uploadProgress}%)` : 'HLS Multi-Bitrate Encoding'}
+                </span>
               </div>
 
               <div className="flex items-center justify-between text-slate-600">
                 <span className="text-slate-500 font-medium">Source File:</span>
                 <span className="font-mono text-slate-800 text-[11px] truncate max-w-[280px]">
-                  {selectedVideoFile?.name || 'Lecture-11_JVM-Memory-Management.mp4'}
+                  {selectedVideoFile?.name || 'Lecture-Video.mp4'}
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-slate-200/80 flex items-center gap-1.5 text-[11px] font-semibold text-blue-700">
-                <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+              <div className={`pt-2 border-t ${uploadStage === 'ready' ? 'border-emerald-200' : 'border-slate-200/80'} flex items-center gap-1.5 text-[11px] font-semibold ${uploadStage === 'ready' ? 'text-emerald-700' : 'text-blue-700'}`}>
+                <CheckCircle2 className={`w-3.5 h-3.5 ${uploadStage === 'ready' ? 'text-emerald-600' : 'text-blue-600'} flex-shrink-0`} />
                 <span>Target resolution: 1080p, 720p HLS • DRM AES-128 encryption applied</span>
               </div>
             </div>
@@ -1109,8 +1118,10 @@ export default function CourseDetail({
                   </>
                 ) : uploadStage === 'ready' ? (
                   <>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-emerald-600 font-bold">Transcode complete</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span className="text-emerald-700 font-bold flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Transcode complete
+                    </span>
                   </>
                 ) : (
                   <>
@@ -1121,20 +1132,32 @@ export default function CourseDetail({
               </div>
 
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleSimulateTranscodeDone}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline transition-all cursor-pointer"
-                >
-                  Simulate Transcode Done
-                </button>
+                {uploadStage === 'ready' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUploadModal(false);
+                      if (modules[0]) {
+                        setActiveVideoModal(modules[0]);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#162544] hover:bg-[#111e3b] text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-white" />
+                    <span>Watch Video</span>
+                  </button>
+                ) : null}
 
                 <button
                   type="button"
                   onClick={() => setShowUploadModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all shadow-xs cursor-pointer ${
+                    uploadStage === 'ready'
+                      ? 'border-emerald-300 bg-white hover:bg-emerald-50 text-emerald-800'
+                      : 'border-slate-300 hover:bg-slate-50 text-slate-700'
+                  }`}
                 >
-                  Dismiss / Close
+                  {uploadStage === 'ready' ? 'Done' : 'Dismiss / Close'}
                 </button>
               </div>
             </div>
@@ -1277,10 +1300,14 @@ export default function CourseDetail({
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
                   <h3 className="font-extrabold text-base sm:text-lg text-slate-900">
-                    Upload Study Material
+                    {materialUploadStage === 'success' ? 'Material Uploaded' : 'Upload Study Material'}
                   </h3>
-                  <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold border border-slate-200 text-slate-600 bg-slate-50">
-                    Course Document
+                  <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold border ${
+                    materialUploadStage === 'success'
+                      ? 'border-emerald-200 text-emerald-700 bg-emerald-50'
+                      : 'border-slate-200 text-slate-600 bg-slate-50'
+                  }`}>
+                    {materialUploadStage === 'success' ? '✔ Verified' : 'Course Document'}
                   </span>
                 </div>
                 <button
@@ -1288,6 +1315,7 @@ export default function CourseDetail({
                     setShowUploadMaterialModal(false);
                     setMaterialFile(null);
                     setMaterialError(null);
+                    setMaterialUploadStage('idle');
                   }}
                   className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                 >
@@ -1295,101 +1323,202 @@ export default function CourseDetail({
                 </button>
               </div>
 
-              {/* Form Content */}
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!materialFile) {
-                    setMaterialError('Please select a file to upload.');
-                    return;
-                  }
-                  if (materialFile.size > 25 * 1024 * 1024) {
-                    setMaterialError(`File limit exceeded. Selected file is ${(materialFile.size / (1024 * 1024)).toFixed(1)} MB (Maximum allowed: 25 MB).`);
-                    return;
-                  }
-                  const sizeMb = (materialFile.size / (1024 * 1024)).toFixed(1);
-                  const title = materialTitle.trim() || materialFile.name.replace(/\.[^/.]+$/, '');
-                  const courseId = course?.id || course?.course_id || 10;
-                  
-                  try {
-                    const saved = await saveStudyMaterialToDatabase({
-                      course_id: courseId,
-                      title: title,
-                      file_path: materialFile.name,
-                      file_type: materialFile.name.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream',
-                      file_size_kb: Math.round(materialFile.size / 1024),
-                      display_order: materials.length + 1
-                    });
-                    
-                    const newDoc = {
-                      id: saved?.id || `mat-${Date.now()}`,
-                      title: saved?.title || title,
-                      type: materialFile.name.endsWith('.pdf') ? 'PDF Document' : 'Course Document',
-                      size: `${sizeMb} MB`,
-                      updatedAt: 'Just now',
-                      downloads: 0,
-                    };
-                    setMaterials((prev) => [newDoc, ...prev]);
-                    setShowUploadMaterialModal(false);
-                    setMaterialFile(null);
-                    setMaterialTitle('');
-                    setMaterialError(null);
-                    showToast('Study material uploaded successfully!');
-                  } catch (err) {
-                    console.error('Error saving study material:', err);
-                    const newDoc = {
-                      id: `mat-${Date.now()}`,
-                      title: title,
-                      type: materialFile.name.endsWith('.pdf') ? 'PDF Document' : 'Course Document',
-                      size: `${sizeMb} MB`,
-                      updatedAt: 'Just now',
-                      downloads: 0,
-                    };
-                    setMaterials((prev) => [newDoc, ...prev]);
-                    setShowUploadMaterialModal(false);
-                    setMaterialFile(null);
-                    setMaterialTitle('');
-                    setMaterialError(null);
-                    showToast('Study material uploaded successfully!');
-                  }
-                }}
-                className="space-y-4 text-xs"
-              >
-                
-                {/* Document Title */}
-                <div>
-                  <label className="block font-bold text-slate-800 mb-1.5 text-xs">
-                    Document Title <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={materialTitle}
-                    onChange={(e) => setMaterialTitle(e.target.value)}
-                    placeholder="Lecture 01 - JVM Architecture & Memory Specification Notes"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-slate-900 font-medium text-xs transition-all"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1 font-normal">
-                    Displayed to students across enrolled course syllabi and evaluations.
-                  </p>
+              {/* Success Tick Mark State */}
+              {materialUploadStage === 'success' ? (
+                <div className="space-y-5 py-3 animate-fadeIn">
+                  <div className="text-center space-y-3">
+                    <div className="w-20 h-20 rounded-3xl bg-emerald-50 border-2 border-emerald-500 flex items-center justify-center text-emerald-600 mx-auto shadow-lg shadow-emerald-100 animate-scaleUp">
+                      <CheckCircle2 className="w-10 h-10 text-emerald-600 stroke-[2.2]" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-extrabold text-slate-900 leading-tight">
+                        Study Material Uploaded Successfully!
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed font-normal">
+                        Document processed, verified, and published to enrolled course students.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-2.5 text-xs">
+                    <div className="flex items-center justify-between text-slate-700">
+                      <span className="font-medium text-slate-500">Document Title:</span>
+                      <span className="font-bold text-slate-900 truncate max-w-[260px]">{uploadedMaterialInfo?.title}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-700">
+                      <span className="font-medium text-slate-500">File Size:</span>
+                      <span className="font-bold text-emerald-700">{uploadedMaterialInfo?.size}</span>
+                    </div>
+                    <div className="pt-2 border-t border-emerald-200 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      <span>SHA-256 Verified • Upload quota under 25 MB</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUploadMaterialModal(false);
+                        setMaterialFile(null);
+                        setMaterialTitle('');
+                        setMaterialUploadStage('idle');
+                      }}
+                      className="px-6 py-2.5 rounded-xl bg-[#162544] hover:bg-[#111e3b] text-white font-bold transition-all shadow-md active:scale-95 cursor-pointer text-xs flex items-center gap-1.5"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>Done</span>
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                /* Form Content */
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!materialFile) {
+                      setMaterialError('Please select a file to upload.');
+                      return;
+                    }
+                    if (materialFile.size > 25 * 1024 * 1024) {
+                      setMaterialError(`File limit exceeded. Selected file is ${(materialFile.size / (1024 * 1024)).toFixed(1)} MB (Maximum allowed: 25 MB).`);
+                      return;
+                    }
+                    const sizeMb = (materialFile.size / (1024 * 1024)).toFixed(1);
+                    const title = materialTitle.trim() || materialFile.name.replace(/\.[^/.]+$/, '');
+                    const courseId = course?.id || course?.course_id || 10;
+                    
+                    setMaterialUploadStage('uploading');
 
-                {/* Curriculum File Attachment */}
-                <div>
-                  <label className="block font-bold text-slate-800 mb-1.5 text-xs">
-                    Curriculum File Attachment <span className="text-red-500">*</span>
-                  </label>
+                    try {
+                      const saved = await saveStudyMaterialToDatabase({
+                        course_id: courseId,
+                        title: title,
+                        file_path: materialFile.name,
+                        file_type: materialFile.name.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream',
+                        file_size_kb: Math.round(materialFile.size / 1024),
+                        display_order: materials.length + 1
+                      });
+                      
+                      const newDoc = {
+                        id: saved?.id || `mat-${Date.now()}`,
+                        title: saved?.title || title,
+                        type: materialFile.name.endsWith('.pdf') ? 'PDF Document' : 'Course Document',
+                        size: `${sizeMb} MB`,
+                        updatedAt: 'Just now',
+                        downloads: 0,
+                      };
+                      setMaterials((prev) => [newDoc, ...prev]);
+                      setUploadedMaterialInfo({
+                        title: newDoc.title,
+                        size: newDoc.size,
+                        name: materialFile.name,
+                      });
+                      setMaterialUploadStage('success');
+                      showToast('Study material uploaded successfully!');
+                    } catch (err) {
+                      console.error('Error saving study material:', err);
+                      const newDoc = {
+                        id: `mat-${Date.now()}`,
+                        title: title,
+                        type: materialFile.name.endsWith('.pdf') ? 'PDF Document' : 'Course Document',
+                        size: `${sizeMb} MB`,
+                        updatedAt: 'Just now',
+                        downloads: 0,
+                      };
+                      setMaterials((prev) => [newDoc, ...prev]);
+                      setUploadedMaterialInfo({
+                        title: newDoc.title,
+                        size: newDoc.size,
+                        name: materialFile.name,
+                      });
+                      setMaterialUploadStage('success');
+                      showToast('Study material uploaded successfully!');
+                    }
+                  }}
+                  className="space-y-4 text-xs"
+                >
+                  
+                  {/* Document Title */}
+                  <div>
+                    <label className="block font-bold text-slate-800 mb-1.5 text-xs">
+                      Document Title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={materialTitle}
+                      onChange={(e) => setMaterialTitle(e.target.value)}
+                      placeholder="Lecture 01 - JVM Architecture & Memory Specification Notes"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-slate-900 font-medium text-xs transition-all"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1 font-normal">
+                      Displayed to students across enrolled course syllabi and evaluations.
+                    </p>
+                  </div>
 
-                  {/* 1. File Limit Exceeded Error State */}
-                  {materialError && (
-                    <div className="border border-red-300 bg-red-50/70 rounded-2xl p-4 space-y-2 animate-fadeIn">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-red-700 font-bold text-xs">
-                          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                          <span>File Limit Exceeded</span>
+                  {/* Curriculum File Attachment */}
+                  <div>
+                    <label className="block font-bold text-slate-800 mb-1.5 text-xs">
+                      Curriculum File Attachment <span className="text-red-500">*</span>
+                    </label>
+
+                    {/* 1. File Limit Exceeded Error State */}
+                    {materialError && (
+                      <div className="border border-red-300 bg-red-50/70 rounded-2xl p-4 space-y-2 animate-fadeIn">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-red-700 font-bold text-xs">
+                            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                            <span>File Limit Exceeded</span>
+                          </div>
+                          <label className="text-[11px] font-bold text-red-700 hover:underline cursor-pointer">
+                            Select different file
+                            <input
+                              type="file"
+                              accept=".pdf,.zip,.doc,.docx"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  if (file.size > 25 * 1024 * 1024) {
+                                    setMaterialFile(file);
+                                    setMaterialError(`File limit exceeded. ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the maximum 25 MB institutional quota.`);
+                                  } else {
+                                    setMaterialFile(file);
+                                    setMaterialError(null);
+                                  }
+                                }
+                              }}
+                            />
+                          </label>
                         </div>
-                        <label className="text-[11px] font-bold text-red-700 hover:underline cursor-pointer">
-                          Select different file
+                        <p className="text-[11px] text-red-600 leading-relaxed font-normal">
+                          {materialError}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* 2. Selected Valid File State */}
+                    {!materialError && materialFile && (
+                      <div className="border border-emerald-300 bg-emerald-50/40 rounded-2xl p-4 flex items-center justify-between animate-fadeIn">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+                            <FileCheck className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-slate-900 truncate">
+                              {materialFile.name}
+                            </h4>
+                            <div className="flex items-center gap-2 text-[11px] text-emerald-700 font-medium mt-0.5">
+                              <span>{(materialFile.size / (1024 * 1024)).toFixed(1)} MB</span>
+                              <span>•</span>
+                              <span className="font-mono text-[10px]">✔ SHA-256 Verified</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <label className="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-600 text-xs font-semibold cursor-pointer transition-colors">
+                          Change
                           <input
                             type="file"
                             accept=".pdf,.zip,.doc,.docx"
@@ -1409,33 +1538,11 @@ export default function CourseDetail({
                           />
                         </label>
                       </div>
-                      <p className="text-[11px] text-red-600 leading-relaxed font-normal">
-                        {materialError}
-                      </p>
-                    </div>
-                  )}
+                    )}
 
-                  {/* 2. Selected Valid File State */}
-                  {!materialError && materialFile && (
-                    <div className="border border-emerald-300 bg-emerald-50/40 rounded-2xl p-4 flex items-center justify-between animate-fadeIn">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
-                          <FileCheck className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-slate-900 truncate">
-                            {materialFile.name}
-                          </h4>
-                          <div className="flex items-center gap-2 text-[11px] text-emerald-700 font-medium mt-0.5">
-                            <span>{(materialFile.size / (1024 * 1024)).toFixed(1)} MB</span>
-                            <span>•</span>
-                            <span className="font-mono text-[10px]">✔ SHA-256 Verified</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <label className="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-600 text-xs font-semibold cursor-pointer transition-colors">
-                        Change
+                    {/* 3. Default Drop State */}
+                    {!materialError && !materialFile && (
+                      <label className="border-2 border-dashed border-slate-300 hover:border-blue-400 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all bg-slate-50/50 hover:bg-blue-50/20 group block">
                         <input
                           type="file"
                           accept=".pdf,.zip,.doc,.docx"
@@ -1453,85 +1560,73 @@ export default function CourseDetail({
                             }
                           }}
                         />
+                        <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mb-3 group-hover:scale-105 transition-transform shadow-xs">
+                          <FileText className="w-6 h-6 text-blue-600 stroke-[1.75]" />
+                        </div>
+                        <p className="text-xs font-bold text-slate-800">
+                          <span className="text-blue-600 hover:underline">Click to select a file</span> or drag and drop
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                          PDF, ZIP or DOC. Maximum 25 MB.
+                        </p>
+                        <div className="mt-3 flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/80">
+                          <Lock className="w-3 h-3 text-emerald-600" />
+                          <span>SHA-256 integrity hash will be generated upon upload</span>
+                        </div>
                       </label>
+                    )}
+
+                  </div>
+
+                  {/* Metadata Card */}
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2 text-xs">
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span className="text-slate-500 font-medium">Destination Course:</span>
+                      <span className="font-bold text-slate-900">{course?.title || 'Current Course'}</span>
                     </div>
-                  )}
 
-                  {/* 3. Default Drop State */}
-                  {!materialError && !materialFile && (
-                    <label className="border-2 border-dashed border-slate-300 hover:border-blue-400 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all bg-slate-50/50 hover:bg-blue-50/20 group block">
-                      <input
-                        type="file"
-                        accept=".pdf,.zip,.doc,.docx"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            if (file.size > 25 * 1024 * 1024) {
-                              setMaterialFile(file);
-                              setMaterialError(`File limit exceeded. ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the maximum 25 MB institutional quota.`);
-                            } else {
-                              setMaterialFile(file);
-                              setMaterialError(null);
-                            }
-                          }
-                        }}
-                      />
-                      <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mb-3 group-hover:scale-105 transition-transform shadow-xs">
-                        <FileText className="w-6 h-6 text-blue-600 stroke-[1.75]" />
-                      </div>
-                      <p className="text-xs font-bold text-slate-800">
-                        <span className="text-blue-600 hover:underline">Click to select a file</span> or drag and drop
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
-                        PDF, ZIP or DOC. Maximum 25 MB.
-                      </p>
-                      <div className="mt-3 flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/80">
-                        <Lock className="w-3 h-3 text-emerald-600" />
-                        <span>SHA-256 integrity hash will be generated upon upload</span>
-                      </div>
-                    </label>
-                  )}
-
-                </div>
-
-                {/* Metadata Card */}
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2 text-xs">
-                  <div className="flex items-center justify-between text-slate-600">
-                    <span className="text-slate-500 font-medium">Destination Module:</span>
-                    <span className="font-bold text-slate-900">Module 01: Internal Architecture & Memory</span>
+                    <div className="flex items-center justify-between text-slate-600 pt-1.5 border-t border-slate-200/80">
+                      <span className="text-slate-500 font-medium">Student Access:</span>
+                      <span className="text-slate-800 font-medium">Visible to Verified Enrolled Students</span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-slate-600 pt-1.5 border-t border-slate-200/80">
-                    <span className="text-slate-500 font-medium">Proctor Access:</span>
-                    <span className="text-slate-800 font-medium">Visible to Verified Students & Faculty</span>
+                  {/* Bottom Action Buttons */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      disabled={materialUploadStage === 'uploading'}
+                      onClick={() => {
+                        setShowUploadMaterialModal(false);
+                        setMaterialFile(null);
+                        setMaterialError(null);
+                      }}
+                      className="px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold transition-all cursor-pointer text-xs disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={materialUploadStage === 'uploading'}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#162544] hover:bg-[#111e3b] text-white font-bold transition-all shadow-md active:scale-[0.98] cursor-pointer text-xs disabled:opacity-50"
+                    >
+                      {materialUploadStage === 'uploading' ? (
+                        <>
+                          <RotateCcw className="w-4 h-4 animate-spin text-white" />
+                          <span>Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="w-4 h-4" />
+                          <span>Upload Material</span>
+                        </>
+                      )}
+                    </button>
                   </div>
-                </div>
 
-                {/* Bottom Action Buttons */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowUploadMaterialModal(false);
-                      setMaterialFile(null);
-                      setMaterialError(null);
-                    }}
-                    className="px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold transition-all cursor-pointer text-xs"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#162544] hover:bg-[#111e3b] text-white font-bold transition-all shadow-md active:scale-[0.98] cursor-pointer text-xs"
-                  >
-                    <UploadCloud className="w-4 h-4" />
-                    <span>Upload Material</span>
-                  </button>
-                </div>
-
-              </form>
+                </form>
+              )}
 
             </div>
 

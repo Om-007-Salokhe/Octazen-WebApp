@@ -8,16 +8,17 @@ export const bunnyService = {
    */
   async createVideoSession(title, collectionId = null) {
     try {
-      const libraryId = env.BUNNY_STREAM_LIBRARY_ID || '754518';
+      const libraryId = env.BUNNY_STREAM_LIBRARY_ID || '756353';
       const apiKey = env.BUNNY_STREAM_API_KEY || env.BUNNY_API_KEY;
 
       if (!libraryId || !apiKey) {
         logger.warn('[BunnyService] API Key or Library ID not set, returning mock video session ID');
         return {
           videoId: `mock-bunny-video-${Date.now()}`,
-          libraryId: libraryId || '754518',
-          uploadUrl: `https://video.bunnycdn.com/library/${libraryId || '754518'}/videos`,
+          libraryId: libraryId || '756353',
+          uploadUrl: `https://video.bunnycdn.com/library/${libraryId || '756353'}/videos`,
           apiKey: '',
+          cdnHostname: env.BUNNY_CDN_HOSTNAME || 'vz-b294700e-43d.b-cdn.net',
         };
       }
 
@@ -44,6 +45,7 @@ export const bunnyService = {
         libraryId: data.videoLibraryId || libraryId,
         directUploadUrl: `https://video.bunnycdn.com/library/${libraryId}/videos/${data.guid}`,
         apiKey,
+        cdnHostname: env.BUNNY_CDN_HOSTNAME || 'vz-b294700e-43d.b-cdn.net',
       };
     } catch (error) {
       logger.error('[BunnyService.createVideoSession Error]', { error: error.message });
@@ -56,7 +58,7 @@ export const bunnyService = {
    */
   async uploadVideoStream(videoId, body) {
     try {
-      const libraryId = env.BUNNY_STREAM_LIBRARY_ID || '754518';
+      const libraryId = env.BUNNY_STREAM_LIBRARY_ID || '756353';
       const apiKey = env.BUNNY_STREAM_API_KEY || env.BUNNY_API_KEY;
 
       const response = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
@@ -85,7 +87,7 @@ export const bunnyService = {
    */
   async getVideoDetails(videoId) {
     try {
-      const libraryId = env.BUNNY_STREAM_LIBRARY_ID || '754518';
+      const libraryId = env.BUNNY_STREAM_LIBRARY_ID || '756353';
       const apiKey = env.BUNNY_STREAM_API_KEY || env.BUNNY_API_KEY;
 
       if (!libraryId || !apiKey) {
@@ -138,7 +140,7 @@ export const bunnyService = {
    */
   async deleteVideo(videoId) {
     try {
-      const libraryId = env.BUNNY_STREAM_LIBRARY_ID || '754518';
+      const libraryId = env.BUNNY_STREAM_LIBRARY_ID || '756353';
       const apiKey = env.BUNNY_STREAM_API_KEY || env.BUNNY_API_KEY;
 
       if (!libraryId || !apiKey) {
@@ -165,7 +167,7 @@ export const bunnyService = {
    */
   async listVideos() {
     try {
-      const libraryId = env.BUNNY_STREAM_LIBRARY_ID || '754518';
+      const libraryId = env.BUNNY_STREAM_LIBRARY_ID || '756353';
       const apiKey = env.BUNNY_STREAM_API_KEY || env.BUNNY_API_KEY;
 
       if (!libraryId || !apiKey) {
@@ -185,7 +187,7 @@ export const bunnyService = {
 
       const data = await response.json();
       const items = data.items || data || [];
-      const cdnHostname = env.BUNNY_CDN_HOSTNAME || 'vz-d51ed155-bdd.b-cdn.net';
+      const cdnHostname = env.BUNNY_CDN_HOSTNAME || 'vz-b294700e-43d.b-cdn.net';
 
       return items.map((item, idx) => {
         const length = item.length || 0;

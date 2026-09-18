@@ -7,8 +7,9 @@ const SUPABASE_REST_URL = 'https://cqmrbxkodgzhmnextnex.supabase.co/rest/v1';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxbXJieGtvZGd6aG1uZXh0bmV4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTQ0NjMwNywiZXhwIjoyMTA1MDIyMzA3fQ.oZ5yW15IzztTjmJ2SbQqopT9f5ES7okQ4mw3dUY5iJU';
 
 // Bunny.net Stream Library Configuration
-const BUNNY_LIBRARY_ID = '754518';
-const BUNNY_API_KEY = 'fac6d0be-021c-473d-bdba182a9982-8182-458a';
+const BUNNY_LIBRARY_ID = '756353';
+const BUNNY_API_KEY = 'ba0a7b46-02f8-4712-bf62271f2b54-5861-4b98';
+const BUNNY_CDN_HOSTNAME = 'vz-b294700e-43d.b-cdn.net';
 
 /**
  * Retrieves the stored JWT token from cookies or localStorage
