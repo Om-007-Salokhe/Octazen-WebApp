@@ -44,6 +44,7 @@ import AddStudent from './AddStudent';
 import StudentDetail from './StudentDetail';
 import {
   fetchStudentsFromDb,
+  fetchCoursesFromDb,
   createStudentInDb,
   deleteStudentFromDb,
 } from '../services/api';
@@ -337,20 +338,28 @@ export default function AdminDashboard({ onLogout, user }) {
     setTimeout(() => setActionMessage(null), 3500);
   };
 
-  // Fetch students from Database on mount
+  // Fetch students & courses from Database on mount
   useEffect(() => {
     let isMounted = true;
-    const loadStudents = async () => {
+    const loadData = async () => {
       try {
-        const dbStudents = await fetchStudentsFromDb();
-        if (isMounted && Array.isArray(dbStudents) && dbStudents.length > 0) {
-          setStudents(dbStudents);
+        const [dbStudents, dbCourses] = await Promise.all([
+          fetchStudentsFromDb(),
+          fetchCoursesFromDb(),
+        ]);
+        if (isMounted) {
+          if (Array.isArray(dbStudents) && dbStudents.length > 0) {
+            setStudents(dbStudents);
+          }
+          if (Array.isArray(dbCourses) && dbCourses.length > 0) {
+            setCourses(dbCourses);
+          }
         }
       } catch (err) {
-        console.warn('[AdminDashboard] Students DB fetch notice:', err);
+        console.warn('[AdminDashboard] DB initial load notice:', err);
       }
     };
-    loadStudents();
+    loadData();
     return () => {
       isMounted = false;
     };
@@ -1177,18 +1186,23 @@ export default function AdminDashboard({ onLogout, user }) {
                         prev.map((s) => (s.id === savedStudent.id ? savedStudent : s))
                       );
                       showToast(`Student "${savedStudent.name}" profile updated.`);
+                      return savedStudent;
                     } else {
                       try {
                         const persisted = await createStudentInDb(savedStudent);
                         setStudents((prev) => [persisted, ...prev.filter((s) => s.id !== persisted.id)]);
                         showToast(`Student "${persisted.name}" saved to database successfully.`);
+                        return persisted;
                       } catch (dbErr) {
                         setStudents((prev) => [savedStudent, ...prev]);
                         showToast(`Student "${savedStudent.name}" enrolled & credentials generated.`);
+                        return savedStudent;
                       }
                     }
-                    setSelectedStudent(null);
-                    setStudentSubView('list');
+                  }}
+                  onStudentCreated={(newStudent) => {
+                    setSelectedStudent(newStudent);
+                    setStudentSubView('detail');
                   }}
                   onCancel={() => {
                     setSelectedStudent(null);

@@ -273,7 +273,8 @@ export default function StudentsList({
                   {filteredStudents.map((student) => (
                     <tr
                       key={student.id}
-                      className="hover:bg-slate-50/80 transition-colors group"
+                      onClick={() => onViewStudent && onViewStudent(student)}
+                      className="hover:bg-blue-50/50 transition-colors group cursor-pointer"
                     >
                       {/* Student Avatar + Name + Username */}
                       <td className="py-4 px-5 align-middle">
@@ -286,7 +287,7 @@ export default function StudentsList({
                             {student.initials}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-bold text-slate-900 text-xs truncate">
+                            <div className="font-bold text-slate-900 text-xs truncate group-hover:text-blue-600 transition-colors">
                               {student.name}
                             </div>
                             <div className="text-[11px] text-slate-400 font-medium truncate">
@@ -334,7 +335,10 @@ export default function StudentsList({
 
                       {/* Actions (Eye, Pencil, More) */}
                       <td className="py-4 px-5 text-right align-middle whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1">
+                        <div
+                          className="inline-flex items-center gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button
                             onClick={() => onViewStudent && onViewStudent(student)}
                             title="View Student"

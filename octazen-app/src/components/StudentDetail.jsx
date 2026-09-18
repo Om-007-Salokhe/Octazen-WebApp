@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   User,
@@ -27,51 +27,90 @@ export default function StudentDetail({
   showToast,
 }) {
   const studentName = student?.name || student?.fullName || 'Priya Deshmukh';
-  const studentUsername = student?.username || '@priya.deshmukh';
-  const studentInitials = student?.initials || 'PD';
+  const studentUsername = student?.username || `@${studentName.toLowerCase().replace(/\s+/g, '.')}`;
+  const studentInitials =
+    student?.initials ||
+    studentName
+      .trim()
+      .split(' ')
+      .map((p) => p[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase() ||
+    'ST';
   const studentAvatarColor = student?.avatarColor || 'purple';
   const studentPhone = student?.mobile || student?.phoneNumber || '+91 98190 23410';
-  const studentEmail = student?.email || 'priya.deshmukh@domain.edu';
-  const studentStatus = student?.status || 'Active';
-  const studentCode = student?.studentCode || (student?.id ? `STU-2024-${String(student.id).slice(-4).toUpperCase()}` : 'STU-2024-8B42');
-  const enrolledDate = student?.createdAt ? new Date(student.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '12 Jan 2024';
+  const studentEmail = student?.email || `${studentName.toLowerCase().replace(/\s+/g, '.')}@domain.edu`;
+  const studentStatus = student?.status || (student?.Is_verify === false ? 'Inactive' : 'Active');
+  const studentCode =
+    student?.studentCode ||
+    (student?.id
+      ? String(student.id).startsWith('STU')
+        ? student.id
+        : `STU-2024-${String(student.id).padStart(4, '0')}`
+      : 'STU-2024-8842');
+  const enrolledDate =
+    student?.createdAt || student?.last_login_at
+      ? new Date(student.createdAt || student.last_login_at).toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        })
+      : '12 Jan 2024';
+
+  // Available courses from Database
+  const availableCoursesList =
+    courses && courses.length > 0
+      ? courses
+      : [
+          { id: '10', title: 'Networking', code: 'CS-010' },
+          { id: '7', title: 'Java Programming Basics', code: 'CS-204' },
+          { id: '1', title: 'Advanced Data Structures & Algorithms in Java', code: 'CS-501' },
+          { id: '5', title: 'Artificial Intelligence & Machine Learning with Python', code: 'AI-601' },
+        ];
 
   // Assigned Courses state matching Image 1
-  const [assignedCourses, setAssignedCourses] = useState([
-    {
-      id: 'ac-1',
-      courseId: 'course-7',
-      title: 'Java Programming Basics',
-      code: 'CS-204',
-      badge: 'Core Academic Credit',
-      validFrom: '10 Jan 2025',
-      validUntil: '10 Jan 2026',
-      daysLeftText: '240 days left',
-      status: 'Active',
-    },
-    {
-      id: 'ac-2',
-      courseId: 'course-1',
-      title: 'Advanced Algorithms & Data Structures',
-      code: 'CS-301',
-      badge: 'Proctored Stream',
-      validFrom: '15 Aug 2024',
-      validUntil: '25 May 2025',
-      daysLeftText: '5 days left',
-      status: 'Expiring Soon',
-    },
-    {
-      id: 'ac-3',
-      courseId: 'course-4',
-      title: 'Database Management Systems & SQL',
-      code: 'CS-202',
-      badge: 'Completed Session',
-      validFrom: '01 Feb 2024',
-      validUntil: '01 Feb 2025',
-      daysLeftText: 'Expired 105 days ago',
-      status: 'Expired',
-    },
-  ]);
+  const [assignedCourses, setAssignedCourses] = useState(() => {
+    if (student?.assignedCourses && Array.isArray(student.assignedCourses)) {
+      return student.assignedCourses;
+    }
+    const primaryCourse = availableCoursesList[0];
+    return [
+      {
+        id: 'ac-1',
+        courseId: primaryCourse?.id || 'course-7',
+        title: primaryCourse?.title || 'Java Programming Basics',
+        code: primaryCourse?.code || 'CS-204',
+        badge: 'Core Academic Credit',
+        validFrom: '10 Jan 2025',
+        validUntil: '10 Jan 2026',
+        daysLeftText: '240 days left',
+        status: 'Active',
+      },
+      {
+        id: 'ac-2',
+        courseId: availableCoursesList[1]?.id || 'course-1',
+        title: availableCoursesList[1]?.title || 'Advanced Algorithms & Data Structures',
+        code: availableCoursesList[1]?.code || 'CS-301',
+        badge: 'Proctored Stream',
+        validFrom: '15 Aug 2024',
+        validUntil: '25 May 2025',
+        daysLeftText: '5 days left',
+        status: 'Expiring Soon',
+      },
+      {
+        id: 'ac-3',
+        courseId: availableCoursesList[2]?.id || 'course-4',
+        title: availableCoursesList[2]?.title || 'Database Management Systems & SQL',
+        code: availableCoursesList[2]?.code || 'CS-202',
+        badge: 'Completed Session',
+        validFrom: '01 Feb 2024',
+        validUntil: '01 Feb 2025',
+        daysLeftText: 'Expired 105 days ago',
+        status: 'Expired',
+      },
+    ];
+  });
 
   // Watch Progress telemetry matching Image 1
   const [watchProgress, setWatchProgress] = useState([
@@ -119,29 +158,55 @@ export default function StudentDetail({
 
   // Device state matching Image 1
   const [deviceInfo, setDeviceInfo] = useState({
-    name: 'Apple MacBook Air (M2, 2023) - macOS 14.4',
+    name: student?.device_name && student?.device_name !== 'Primary Device' ? student.device_name : 'Apple MacBook Air (M2, 2023) - macOS 14.4',
     ip: '103.211.54.18 (Mumbai, India)',
     client: 'Aegis Desktop Client v2.4',
-    firstLogin: '12 Jan 2024, 09:18 AM IST',
+    firstLogin: student?.last_login_at
+      ? new Date(student.last_login_at).toLocaleString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }) + ' IST'
+      : '12 Jan 2024, 09:18 AM IST',
     isTrusted: true,
   });
 
+  // Re-sync when student prop changes
+  useEffect(() => {
+    if (student) {
+      setDeviceInfo({
+        name: student?.device_name && student?.device_name !== 'Primary Device' ? student.device_name : 'Apple MacBook Air (M2, 2023) - macOS 14.4',
+        ip: '103.211.54.18 (Mumbai, India)',
+        client: 'Aegis Desktop Client v2.4',
+        firstLogin: student?.last_login_at
+          ? new Date(student.last_login_at).toLocaleString('en-GB', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }) + ' IST'
+          : '12 Jan 2024, 09:18 AM IST',
+        isTrusted: true,
+      });
+    }
+  }, [student?.id]);
+
   // Assign Course Modal State (Matching Image 2)
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || 'course-7');
+  const [selectedCourseId, setSelectedCourseId] = useState(availableCoursesList[0]?.id || '10');
   const [validFrom, setValidFrom] = useState('16 Sep 2026');
   const [validUntil, setValidUntil] = useState('15 Dec 2026');
   const [selectedDuration, setSelectedDuration] = useState('3 Months'); // '1 Month' | '3 Months' | '6 Months' | '1 Year'
   const [isAssigning, setIsAssigning] = useState(false);
 
-  // Available courses list (from catalog / database fallback)
-  const availableCoursesList = courses.length > 0 ? courses : [
-    { id: 'course-7', title: 'Java Programming Basics', code: 'CS-204' },
-    { id: 'course-1', title: 'Advanced Data Structures & Algorithms in Java', code: 'CS-501' },
-    { id: 'course-5', title: 'Artificial Intelligence & Machine Learning with Python', code: 'AI-601' },
-    { id: 'course-2', title: 'Constitutional Law & Public Administration of India', code: 'LAW-302' },
-    { id: 'course-3', title: 'VLSI Design & Microelectronics Engineering', code: 'EE-410' },
-  ];
+  useEffect(() => {
+    if (availableCoursesList && availableCoursesList.length > 0) {
+      setSelectedCourseId(availableCoursesList[0].id);
+    }
+  }, [courses]);
 
   const selectedCourseObj = availableCoursesList.find((c) => String(c.id) === String(selectedCourseId)) || availableCoursesList[0];
 

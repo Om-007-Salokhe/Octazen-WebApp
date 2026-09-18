@@ -7,9 +7,13 @@ import {
   AlertCircle,
   ArrowLeft,
   Lock,
+  Check,
+  Copy,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 
-export default function AddStudent({ onSaveStudent, onCancel, initialData }) {
+export default function AddStudent({ onSaveStudent, onCancel, onStudentCreated, initialData }) {
   const [fullName, setFullName] = useState(initialData?.name || initialData?.fullName || '');
   const [mobileNumber, setMobileNumber] = useState(
     initialData?.mobile ? initialData.mobile.replace('+91 ', '') : ''
@@ -20,11 +24,43 @@ export default function AddStudent({ onSaveStudent, onCancel, initialData }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Success Modal State (Matching Image 3)
+  const [createdStudent, setCreatedStudent] = useState(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [copiedField, setCopiedField] = useState(null);
+  const [copiedBoth, setCopiedBoth] = useState(false);
+
+  const copyToClipboard = (text, field) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    }
+  };
+
+  const handleCopyBoth = () => {
+    if (navigator.clipboard && createdStudent) {
+      const text = `Username: ${createdStudent.username}\nPassword: ${createdStudent.password || password}\nName: ${createdStudent.name}\nEmail: ${createdStudent.email}\nPhone: ${createdStudent.mobile}`;
+      navigator.clipboard.writeText(text);
+      setCopiedBoth(true);
+      setTimeout(() => setCopiedBoth(false), 2000);
+    }
+  };
+
+  const handleFinish = () => {
+    setShowSuccessModal(false);
+    if (onStudentCreated) {
+      onStudentCreated(createdStudent);
+    } else if (onCancel) {
+      onCancel();
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
-    // Requirement 1: Mandatory fields are full name, phone no, email address, password, confirm password
+    // Mandatory fields validation
     if (!fullName.trim()) {
       setErrorMessage('Full Name is required.');
       return;
@@ -72,11 +108,14 @@ export default function AddStudent({ onSaveStudent, onCancel, initialData }) {
       ? mobileNumber.trim()
       : `+91 ${mobileNumber.trim()}`;
 
+    const studentCode = initialData?.studentCode || `STU-2024-${Math.floor(1000 + Math.random() * 9000)}`;
+
     const newStudent = {
       id: initialData?.id || `stu-${Date.now()}`,
       name: fullName.trim(),
       fullName: fullName.trim(),
       username: generatedUsername,
+      studentCode,
       initials: initials || 'ST',
       avatarColor: initialData?.avatarColor || randomColor,
       mobile: cleanMobile,
@@ -92,7 +131,14 @@ export default function AddStudent({ onSaveStudent, onCancel, initialData }) {
     };
 
     try {
-      await onSaveStudent(newStudent);
+      const persisted = await onSaveStudent(newStudent);
+      const studentToDisplay = persisted || newStudent;
+      setCreatedStudent({
+        ...studentToDisplay,
+        password: password,
+        studentCode: studentToDisplay.studentCode || studentCode,
+      });
+      setShowSuccessModal(true);
     } catch (err) {
       setErrorMessage(err?.message || 'Failed to save student.');
     } finally {
@@ -259,7 +305,7 @@ export default function AddStudent({ onSaveStudent, onCancel, initialData }) {
             <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="font-medium text-slate-800 leading-relaxed">
-                Credentials will be encrypted with AES-256 and securely saved to the database. The student can use their email or phone number to log into their portal.
+                Credentials will be encrypted and saved to the database. Upon saving, you will receive the official credentials card to copy and share with the student.
               </p>
               <p className="text-[11px] text-blue-700 font-medium">
                 Enrolment audit logs will document administrative creation by Dr. Arthur Vance.
@@ -290,6 +336,128 @@ export default function AddStudent({ onSaveStudent, onCancel, initialData }) {
         </form>
 
       </div>
+
+      {/* ========================================================= */}
+      {/* MODAL: STUDENT CREATED SUCCESSFULLY (Matching Image 3) */}
+      {/* ========================================================= */}
+      {showSuccessModal && createdStudent && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-200 shadow-2xl p-6 sm:p-7 space-y-5 animate-scaleUp relative">
+            
+            {/* Top Close Button */}
+            <button
+              type="button"
+              onClick={handleFinish}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Top Green Checkmark Badge */}
+            <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 mx-auto">
+              <Check className="w-6 h-6 stroke-[2.5]" />
+            </div>
+
+            {/* Heading & Subtitle */}
+            <div className="text-center space-y-1">
+              <h3 className="text-lg sm:text-xl font-extrabold text-slate-900">
+                Student Created Successfully
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">
+                Student account <strong className="text-slate-900 font-mono">{createdStudent.studentCode || 'STU-2024-8842'}</strong> provisioned with initial access credentials.
+              </p>
+            </div>
+
+            {/* Credentials Card (Matching Image 3) */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-3 text-xs">
+              
+              {/* USERNAME Row */}
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-bold text-[11px] text-slate-400 uppercase tracking-wider w-20 flex-shrink-0">
+                  USERNAME
+                </span>
+                <div className="flex items-center flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2">
+                  <span className="font-mono text-slate-900 font-semibold flex-1 truncate text-xs">
+                    {createdStudent.username || `@${createdStudent.name?.toLowerCase().replace(/\s+/g, '.')}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(createdStudent.username, 'username')}
+                    className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer transition-colors"
+                    title="Copy Username"
+                  >
+                    {copiedField === 'username' ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* PASSWORD Row */}
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-bold text-[11px] text-slate-400 uppercase tracking-wider w-20 flex-shrink-0">
+                  PASSWORD
+                </span>
+                <div className="flex items-center flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2">
+                  <span className="font-mono text-slate-900 font-semibold flex-1 truncate text-xs">
+                    {createdStudent.password || password}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(createdStudent.password || password, 'password')}
+                    className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer transition-colors"
+                    title="Copy Password"
+                  >
+                    {copiedField === 'password' ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Copy Both Credentials Link */}
+              <div className="pt-1 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleCopyBoth}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  {copiedBoth ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                  <span>{copiedBoth ? 'Copied Both to Clipboard!' : 'Copy Both Credentials'}</span>
+                </button>
+              </div>
+
+            </div>
+
+            {/* Warning Callout Box (Matching Image 3) */}
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-3.5 flex items-start gap-2.5 text-xs text-amber-900">
+              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-[11px] leading-relaxed font-medium">
+                This password will not be shown again. Please copy it and share it with the student now.
+              </p>
+            </div>
+
+            {/* Action Button: I have noted it down (Matching Image 3) */}
+            <button
+              type="button"
+              onClick={handleFinish}
+              className="w-full py-3 rounded-xl bg-[#162544] hover:bg-[#111e3b] text-white text-xs font-bold transition-all shadow-md active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              <span>I have noted it down</span>
+            </button>
+
+          </div>
+        </div>
+      )}
 
       {/* Bottom Compliance Footer */}
       <div className="text-center text-xs text-slate-400 font-medium pt-2">

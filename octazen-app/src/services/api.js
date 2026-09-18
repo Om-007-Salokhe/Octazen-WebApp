@@ -229,6 +229,60 @@ const formatRawStudent = (row) => {
   };
 };
 
+const formatRawCourse = (row) => {
+  const code = row.code || `CS-${String(row.id || '204').padStart(3, '0')}`;
+  return {
+    id: String(row.id),
+    rawId: row.id,
+    code,
+    title: row.title || 'Course Title',
+    description: row.description || '',
+    thumbnailUrl: row.thumbnail_url || row.thumbnailUrl || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&auto=format&fit=crop&q=80',
+    videoCount: row.videoCount || 12,
+    studentsCount: row.studentsCount || 45,
+    status: row.is_published === false ? 'Draft' : (row.status || 'Published'),
+    discipline: row.discipline || 'Computer Science',
+    createdAt: row.created_at || new Date().toISOString(),
+  };
+};
+
+/**
+ * Fetch all courses from Database
+ */
+export const fetchCoursesFromDb = async () => {
+  try {
+    const res = await authFetch('/courses');
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        return json.data.map(formatRawCourse);
+      }
+    }
+  } catch (err) {
+    console.warn('[API] Backend courses endpoint unavailable, using direct Supabase client');
+  }
+
+  try {
+    const response = await fetch(`${SUPABASE_REST_URL}/courses?select=*&order=id.asc`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+    });
+
+    if (response.ok) {
+      const rows = await response.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows.map(formatRawCourse);
+      }
+    }
+  } catch (e) {
+    console.error('[API] Direct Supabase courses fetch failed:', e);
+  }
+
+  return [];
+};
+
 /**
  * Fetch all students from Database
  */
@@ -565,6 +619,7 @@ export default {
   loginAdmin,
   authFetch,
   fetchStudentsFromDb,
+  fetchCoursesFromDb,
   createStudentInDb,
   deleteStudentFromDb,
   initBunnyVideoSession,
