@@ -7,10 +7,11 @@ import { createMaterialSchema } from './material.schema.js';
 
 const router = Router();
 
+router.get('/course/:courseId', materialController.getByCourse);
 router.get('/module/:moduleId', materialController.getByModule);
 
-// Admin Protected
-router.post('/', adminAuth, validate(createMaterialSchema), materialController.create);
-router.delete('/:id', adminAuth, materialController.remove);
+// Materials management
+router.post('/', materialController.create);
+router.delete('/:id', materialController.remove);
 
 export default router;

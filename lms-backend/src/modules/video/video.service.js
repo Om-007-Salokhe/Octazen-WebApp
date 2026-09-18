@@ -27,11 +27,60 @@ export const videoService = {
 
   async getVideosByCourse(courseId) {
     try {
-      return await supabaseService.getVideos(courseId);
+      const [dbVideos, bunnyVideos] = await Promise.all([
+        supabaseService.getVideos(courseId),
+        bunnyService.listVideos(),
+      ]);
+
+      const bunnyMap = new Map();
+      bunnyVideos.forEach((bv) => {
+        bunnyMap.set(bv.guid || bv.bunny_video_id, bv);
+      });
+
+      // Format db videos
+      const formattedDb = (dbVideos || []).map((v) => {
+        const bunnyInfo = bunnyMap.get(v.bunny_video_id);
+        const durationSec = v.duration_seconds || bunnyInfo?.duration_seconds || 0;
+        const mins = Math.floor(durationSec / 60);
+        const secs = durationSec % 60;
+        const durationFormatted = durationSec > 0 ? `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}` : '00:30';
+
+        return {
+          id: String(v.id),
+          dbId: v.id,
+          courseId: v.course_id,
+          title: v.title,
+          description: v.description || '',
+          bunny_video_id: v.bunny_video_id,
+          bunny_library_id: v.bunny_library_id || '754518',
+          duration_seconds: durationSec,
+          duration: durationFormatted,
+          status: v.status === 'ready' ? 'Ready' : (v.status === 'failed' ? 'Failed' : 'Processing'),
+          thumbnail_url: v.thumbnail_url || bunnyInfo?.thumbnail_url || `https://vz-d51ed155-bdd.b-cdn.net/${v.bunny_video_id}/thumbnail.jpg`,
+          thumbnail: v.thumbnail_url || bunnyInfo?.thumbnail_url || `https://vz-d51ed155-bdd.b-cdn.net/${v.bunny_video_id}/thumbnail.jpg`,
+          embedUrl: `https://iframe.mediadelivery.net/embed/${v.bunny_library_id || '754518'}/${v.bunny_video_id}?autoplay=true&preload=true`,
+        };
+      });
+
+      // If DB has videos for this course, return them
+      if (formattedDb.length > 0) {
+        return formattedDb;
+      }
+
+      // If DB has no specific videos mapped for this course yet, return all active Bunny library videos
+      return bunnyVideos;
     } catch (error) {
       logger.error('[VideoService.getVideosByCourse Error]', { error: error.message });
-      return [];
+      try {
+        return await bunnyService.listVideos();
+      } catch (e) {
+        return [];
+      }
     }
+  },
+
+  async listBunnyVideos() {
+    return bunnyService.listVideos();
   },
 
   async createVideo(data) {

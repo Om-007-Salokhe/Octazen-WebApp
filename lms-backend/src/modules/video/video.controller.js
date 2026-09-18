@@ -16,6 +16,24 @@ export const videoController = {
     }
   },
 
+  async getAll(req, res, next) {
+    try {
+      const videos = await videoService.listBunnyVideos();
+      return sendSuccess(res, videos);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async listBunny(req, res, next) {
+    try {
+      const videos = await videoService.listBunnyVideos();
+      return sendSuccess(res, videos);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async getByCourse(req, res, next) {
     try {
       const { courseId } = req.params;

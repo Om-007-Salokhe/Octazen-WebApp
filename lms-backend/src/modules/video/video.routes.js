@@ -7,6 +7,8 @@ import { createVideoSchema } from './video.schema.js';
 
 const router = Router();
 
+router.get('/', videoController.getAll);
+router.get('/bunny-list', videoController.listBunny);
 router.get('/:id/stream', videoController.getStream);
 router.get('/status/:videoId', videoController.getStatus);
 router.get('/course/:courseId', videoController.getByCourse);

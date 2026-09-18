@@ -3,6 +3,16 @@ import { materialService } from './material.service.js';
 import { sendSuccess } from '../../utils/response.js';
 
 export const materialController = {
+  async getByCourse(req, res, next) {
+    try {
+      const { courseId } = req.params;
+      const materials = await materialService.getByCourse(courseId);
+      return sendSuccess(res, materials);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async getByModule(req, res, next) {
     try {
       const materials = await materialService.getByModule(req.params.moduleId);

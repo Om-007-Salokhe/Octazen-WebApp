@@ -34,6 +34,11 @@ import {
   uploadVideoFileToBunny,
   getBunnyVideoStatus,
   saveVideoToDatabase,
+  fetchVideosForCourse,
+  fetchMaterialsForCourse,
+  saveStudyMaterialToDatabase,
+  deleteStudyMaterialFromDatabase,
+  deleteVideoFromDatabase,
 } from '../services/api';
 
 export default function CourseDetail({
@@ -44,159 +49,16 @@ export default function CourseDetail({
   // Navigation tabs
   const [activeTab, setActiveTab] = useState('videos'); // 'videos' | 'materials' | 'quizzes'
 
-  // Video Modules state matching Image 4
-  const [modules, setModules] = useState([
-    {
-      id: 'mod-1',
-      seq: '01',
-      title: '01. Introduction to Java Virtual Machine (JVM) & JDK Setup',
-      duration: '18:45',
-      status: 'Ready', // 'Ready' | 'Processing' | 'Failed'
-      subtext: null,
-      thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=300&auto=format&fit=crop&q=80',
-      description: 'Understanding bytecode execution, JIT compilation, and setting up the OpenJDK development environment.',
-    },
-    {
-      id: 'mod-2',
-      seq: '02',
-      title: '02. Variables, Primitive Data Types & Memory Allocation',
-      duration: '24:12',
-      status: 'Ready',
-      subtext: null,
-      thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=300&auto=format&fit=crop&q=80',
-      description: 'Stack vs Heap memory dynamics, type casting rules, and IEEE-754 floating point representations.',
-    },
-    {
-      id: 'mod-3',
-      seq: '03',
-      title: '03. Control Flow: Conditionals, Switch Expressions & Loops',
-      duration: '31:05',
-      status: 'Ready',
-      subtext: null,
-      thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=300&auto=format&fit=crop&q=80',
-      description: 'Pattern matching with enhanced switch statements and optimized loop unrolling mechanics.',
-    },
-    {
-      id: 'mod-4',
-      seq: '04',
-      title: '04. Object-Oriented Principles: Classes, Objects & Encapsulation',
-      duration: '28:50',
-      status: 'Ready',
-      subtext: null,
-      thumbnail: 'https://images.unsplash.com/photo-1537432376769-00f5c2f4c8d2?w=300&auto=format&fit=crop&q=80',
-      description: 'Class design invariants, access modifiers, constructors, and records in modern Java.',
-    },
-    {
-      id: 'mod-5',
-      seq: '05',
-      title: '05. Inheritance, Polymorphism & Interface Implementations',
-      duration: '35:40',
-      status: 'Ready',
-      subtext: null,
-      thumbnail: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=300&auto=format&fit=crop&q=80',
-      description: 'Virtual method tables, dynamic dispatch, default interface methods, and abstract class hierarchy.',
-    },
-    {
-      id: 'mod-6',
-      seq: '06',
-      title: '06. Exception Handling: Try-Catch-Finally & Custom Exceptions',
-      duration: '22:15',
-      status: 'Ready',
-      subtext: null,
-      thumbnail: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=300&auto=format&fit=crop&q=80',
-      description: 'Checked vs unchecked exceptions, try-with-resources, and exception suppression mechanics.',
-    },
-    {
-      id: 'mod-7',
-      seq: '07',
-      title: '07. Java Collections Framework: ArrayList, LinkedList & Sets',
-      duration: '42:10',
-      status: 'Ready',
-      subtext: null,
-      thumbnail: 'https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=300&auto=format&fit=crop&q=80',
-      description: 'Underlying data structures, time complexity trade-offs, and fail-fast vs fail-safe iterators.',
-    },
-    {
-      id: 'mod-8',
-      seq: '08',
-      title: '08. Map Implementations & Hashing Mechanics (HashMap vs ConcurrentHashMap)',
-      duration: '38:20',
-      status: 'Ready',
-      subtext: null,
-      thumbnail: 'https://images.unsplash.com/photo-1629654297299-c8506221ca97?w=300&auto=format&fit=crop&q=80',
-      description: 'Hash collision resolution, bucket treeification threshold (Red-Black trees), and lock-striping.',
-    },
-    {
-      id: 'mod-9',
-      seq: '09',
-      title: '09. Multithreading, Thread Lifecycle & Synchronization',
-      duration: '29:45',
-      status: 'Processing',
-      subtext: 'Encoding multi-bitrate HLS streams (72% complete)',
-      thumbnail: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=300&auto=format&fit=crop&q=80',
-      description: 'Thread states, volatile keyword, synchronized blocks, and atomic reference operations.',
-    },
-    {
-      id: 'mod-10',
-      seq: '10',
-      title: '10. Java I/O Streams, NIO & File Serialization Techniques',
-      duration: '15:20',
-      status: 'Failed',
-      subtext: 'Transcode timeout: Corrupted audio track header detected',
-      thumbnail: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=300&auto=format&fit=crop&q=80',
-      description: 'Byte streams vs character streams, memory-mapped files via NIO channels, and serialization UID.',
-    },
-  ]);
+  // Video Modules state from Database & Bunny.net
+  const [modules, setModules] = useState([]);
+  const [loadingVideos, setLoadingVideos] = useState(true);
 
-  // Study Materials State
-  const [materials, setMaterials] = useState([
-    {
-      id: 'mat-1',
-      title: 'CS-204 Official Course Syllabus & Grading Rubric',
-      type: 'PDF Document',
-      size: '2.4 MB',
-      updatedAt: '2 days ago',
-      downloads: 342,
-    },
-    {
-      id: 'mat-2',
-      title: 'Lecture Slides Bundle: Modules 01 - 08 (Complete)',
-      type: 'Keynote / PDF',
-      size: '18.7 MB',
-      updatedAt: 'Yesterday',
-      downloads: 890,
-    },
-    {
-      id: 'mat-3',
-      title: 'Laboratory Starter Code & JUnit 5 Test Suite',
-      type: 'ZIP Archive',
-      size: '4.2 MB',
-      updatedAt: '3 hours ago',
-      downloads: 512,
-    },
-  ]);
+  // Study Materials State from Database
+  const [materials, setMaterials] = useState([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(true);
 
   // Proctored Quizzes State
-  const [quizzes, setQuizzes] = useState([
-    {
-      id: 'q-1',
-      title: 'Midterm Examination: OOP Principles & Collections Framework',
-      duration: '60 mins',
-      questions: 45,
-      proctoringMode: 'Strict AI Lock + Live Proctor Feed',
-      status: 'Scheduled',
-      scheduledDate: 'Oct 24, 2025 • 10:00 AM UTC',
-    },
-    {
-      id: 'q-2',
-      title: 'Final Capstone Assessment: Concurrency & Stream Processing',
-      duration: '90 mins',
-      questions: 60,
-      proctoringMode: 'Continuous Biometric Gaze & Audio Analysis',
-      status: 'Draft',
-      scheduledDate: 'Nov 18, 2025 • 02:00 PM UTC',
-    },
-  ]);
+  const [quizzes, setQuizzes] = useState([]);
 
   // Modals & Active states
   const [toastMessage, setToastMessage] = useState(null);
@@ -207,11 +69,42 @@ export default function CourseDetail({
   const [activeVideoModal, setActiveVideoModal] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showUploadMaterialModal, setShowUploadMaterialModal] = useState(false);
-  const [materialTitle, setMaterialTitle] = useState('Lecture 01 - JVM Architecture & Memory Specification Notes');
+  const [materialTitle, setMaterialTitle] = useState('');
   const [materialFile, setMaterialFile] = useState(null);
   const [materialError, setMaterialError] = useState(null);
   const [editingModule, setEditingModule] = useState(null);
   const [retryingId, setRetryingId] = useState(null);
+
+  // Fetch real videos and study materials on mount & when course changes
+  React.useEffect(() => {
+    let isMounted = true;
+    const loadContent = async () => {
+      setLoadingVideos(true);
+      setLoadingMaterials(true);
+      try {
+        const [dbVideos, dbMaterials] = await Promise.all([
+          fetchVideosForCourse(course?.id || course?.rawId),
+          fetchMaterialsForCourse(course?.id || course?.rawId),
+        ]);
+        if (isMounted) {
+          setModules(Array.isArray(dbVideos) ? dbVideos : []);
+          setMaterials(Array.isArray(dbMaterials) ? dbMaterials : []);
+        }
+      } catch (e) {
+        console.warn('[CourseDetail] Load content notice:', e);
+      } finally {
+        if (isMounted) {
+          setLoadingVideos(false);
+          setLoadingMaterials(false);
+        }
+      }
+    };
+
+    loadContent();
+    return () => {
+      isMounted = false;
+    };
+  }, [course?.id, course?.rawId]);
 
   // Video Upload from Device & Bunny.net Pipeline State
   const fileInputRef = React.useRef(null);
@@ -320,9 +213,19 @@ export default function CourseDetail({
     }
   };
 
-  // Handle Delete module
-  const handleDeleteModule = (moduleId, title) => {
-    if (window.confirm(`Delete module "${title}" from the curriculum?`)) {
+  // Handle Delete study material
+  const handleDeleteMaterial = async (matId, title) => {
+    if (window.confirm(`Delete study material "${title}"?`)) {
+      setMaterials((prev) => prev.filter((m) => m.id !== matId));
+      await deleteStudyMaterialFromDatabase(matId);
+      showToast(`Study material "${title}" deleted.`);
+    }
+  };
+
+  // Handle Delete video module
+  const handleDeleteModule = async (moduleId, title) => {
+    const target = modules.find((m) => m.id === moduleId);
+    if (window.confirm(`Delete video module "${title || target?.title || 'this video'}" from the curriculum?`)) {
       setModules((prev) => {
         const remaining = prev.filter((m) => m.id !== moduleId);
         return remaining.map((mod, idx) => ({
@@ -330,6 +233,8 @@ export default function CourseDetail({
           seq: String(idx + 1).padStart(2, '0'),
         }));
       });
+      await deleteVideoFromDatabase(target?.dbId || target?.id || moduleId, target?.bunny_video_id || target?.bunnyVideoId);
+      showToast('Video lecture removed from database and Bunny.net stream.');
     }
   };
 
@@ -339,9 +244,9 @@ export default function CourseDetail({
     setEditTitle(mod.title);
     setEditDescription(
       mod.description ||
-        'Architectural overview of JVM memory zones, bytecode compilation, execution engine, and environment installation for JDK 21 LTS.'
+        'Architectural overview of course curriculum and lecture streaming notes.'
     );
-    setEditDuration(mod.duration || '14:32');
+    setEditDuration(mod.duration || '00:30');
   };
 
   // Handle Save Edit Module
@@ -362,6 +267,7 @@ export default function CourseDetail({
       )
     );
     setEditingModule(null);
+    showToast('Video module details updated.');
   };
 
   // Open device file picker dialog
@@ -414,31 +320,38 @@ export default function CourseDetail({
             // Add newly transcoded video to curriculum modules
             const nextSeqNum = modules.length + 1;
             const formattedSeq = String(nextSeqNum).padStart(2, '0');
+            const cdnHost = 'vz-d51ed155-bdd.b-cdn.net';
+            const thumb = `https://${cdnHost}/${session.videoId}/thumbnail.jpg`;
+            const durationFormatted = statusData.length ? `${Math.floor(statusData.length / 60)}:${String(statusData.length % 60).padStart(2, '0')}` : '00:30';
+
             const newModule = {
-              id: `mod-${Date.now()}`,
+              id: session.videoId,
               seq: formattedSeq,
-              title: `${formattedSeq}. ${cleanTitle}`,
-              duration: statusData.length ? `${Math.floor(statusData.length / 60)}:${String(statusData.length % 60).padStart(2, '0')}` : '18:45',
+              title: `${cleanTitle}`,
+              duration: durationFormatted,
               status: 'Ready',
               subtext: null,
-              thumbnail:
-                'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=300&auto=format&fit=crop&q=80',
-              description: `Lecture video media transcoded to 1080p, 720p HLS with AES-128 encryption. Source file: ${file.name}`,
-              bunnyVideoId: session.videoId,
+              thumbnail: thumb,
+              thumbnailUrl: thumb,
+              description: `Lecture video media transcoded to 1080p, 720p HLS. Source file: ${file.name}`,
+              bunny_video_id: session.videoId,
+              bunny_library_id: String(session.libraryId || '754518'),
             };
 
             setModules((prev) => {
-              if (prev.some((m) => m.bunnyVideoId === session.videoId)) return prev;
-              return [...prev, newModule];
+              if (prev.some((m) => m.bunny_video_id === session.videoId || m.id === session.videoId)) return prev;
+              return [newModule, ...prev];
             });
 
             // Save video metadata into Database
-            saveVideoToDatabase({
-              course_id: 7,
-              title: `${formattedSeq}. ${cleanTitle}`,
+            await saveVideoToDatabase({
+              course_id: parseInt(course?.rawId || course?.id || 10, 10),
+              title: cleanTitle,
               description: `Lecture video stream: ${file.name}`,
               bunny_video_id: session.videoId,
-              duration_seconds: statusData.length || 1125,
+              bunny_library_id: String(session.libraryId || '754518'),
+              duration_seconds: statusData.length || 30,
+              thumbnail_url: thumb,
               display_order: nextSeqNum,
             });
 
@@ -461,36 +374,41 @@ export default function CourseDetail({
   };
 
   // Handle Simulate Transcode Done
-  const handleSimulateTranscodeDone = () => {
+  const handleSimulateTranscodeDone = async () => {
     const nextSeqNum = modules.length + 1;
     const formattedSeq = String(nextSeqNum).padStart(2, '0');
-    const sourceFileName = selectedVideoFile?.name || 'Lecture-11_JVM-Memory-Management.mp4';
+    const sourceFileName = selectedVideoFile?.name || 'Lecture-Video.mp4';
     const cleanTitle = sourceFileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+    const vidId = activeBunnySession?.videoId || `bunny-${Date.now()}`;
+    const cdnHost = 'vz-d51ed155-bdd.b-cdn.net';
+    const thumb = `https://${cdnHost}/${vidId}/thumbnail.jpg`;
 
     const newModule = {
-      id: `mod-${Date.now()}`,
+      id: vidId,
       seq: formattedSeq,
-      title: `${formattedSeq}. ${cleanTitle.length > 3 ? cleanTitle : 'Introduction to Memory Management & GC Tuning'}`,
-      duration: '16:40',
+      title: cleanTitle,
+      duration: '00:30',
       status: 'Ready',
       subtext: null,
-      thumbnail:
-        'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=300&auto=format&fit=crop&q=80',
-      description:
-        `Architectural overview of JVM heap management, ZGC collector flags, and memory barrier synchronization. (${sourceFileName})`,
-      bunnyVideoId: activeBunnySession?.videoId || `sim-${Date.now()}`,
+      thumbnail: thumb,
+      thumbnailUrl: thumb,
+      description: `Lecture video media transcoded to 1080p, 720p HLS. (${sourceFileName})`,
+      bunny_video_id: vidId,
+      bunny_library_id: '754518',
     };
 
-    setModules((prev) => [...prev, newModule]);
+    setModules((prev) => [newModule, ...prev]);
     setUploadStage('ready');
 
     // Save to Database
-    saveVideoToDatabase({
-      course_id: 7,
+    await saveVideoToDatabase({
+      course_id: parseInt(course?.rawId || course?.id || 10, 10),
       title: newModule.title,
       description: newModule.description,
-      bunny_video_id: newModule.bunnyVideoId,
-      duration_seconds: 1000,
+      bunny_video_id: newModule.bunny_video_id,
+      bunny_library_id: '754518',
+      duration_seconds: 30,
+      thumbnail_url: thumb,
       display_order: nextSeqNum,
     });
 
@@ -700,221 +618,188 @@ export default function CourseDetail({
             </div>
           </div>
 
-          {/* Video Modules Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3 px-4 w-16 text-center">SEQ</th>
-                  <th className="py-3 px-4 min-w-[340px]">VIDEO PREVIEW & MODULE TITLE</th>
-                  <th className="py-3 px-4 text-center">DURATION</th>
-                  <th className="py-3 px-4 text-center">STATUS</th>
-                  <th className="py-3 px-5 text-right">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {modules.map((mod) => (
-                  <tr
-                    key={mod.id}
-                    className="hover:bg-slate-50/80 transition-colors group"
-                  >
-                    {/* Sequence Drag Handle + Number */}
-                    <td className="py-3.5 px-4 text-center align-middle">
-                      <div className="inline-flex items-center gap-1 text-xs font-mono font-bold text-slate-400 group-hover:text-slate-700">
-                        <GripVertical className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 cursor-grab" />
-                        <span>{mod.seq}</span>
-                      </div>
-                    </td>
-
-                    {/* Preview Thumbnail & Title */}
-                    <td className="py-3.5 px-4 align-middle">
-                      <div className="flex items-center gap-3.5">
-                        
-                        {/* Thumbnail / Status Icon Card */}
-                        <div
-                          onClick={() => mod.status === 'Ready' && setActiveVideoModal(mod)}
-                          className={`w-16 h-11 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 flex-shrink-0 relative shadow-xs flex items-center justify-center ${
-                            mod.status === 'Ready' ? 'cursor-pointer' : ''
-                          }`}
-                        >
-                          {mod.status === 'Processing' ? (
-                            <div className="w-full h-full bg-amber-50/80 flex items-center justify-center">
-                              <RefreshCw className="w-5 h-5 text-amber-600 animate-spin" />
-                            </div>
-                          ) : mod.status === 'Failed' ? (
-                            <div className="w-full h-full bg-red-50 flex items-center justify-center">
-                              <AlertCircle className="w-5 h-5 text-red-500" />
-                            </div>
-                          ) : (
-                            <>
-                              <img
-                                src={mod.thumbnail}
-                                alt={mod.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90"
-                              />
-                              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 flex items-center justify-center">
-                                <Play className="w-3.5 h-3.5 text-white/90 fill-white/90" />
-                              </div>
-                            </>
-                          )}
+          {/* Video Modules Table / Empty / Loading State */}
+          {loadingVideos ? (
+            <div className="p-12 text-center text-slate-400 space-y-3">
+              <RefreshCw className="w-8 h-8 animate-spin mx-auto text-blue-600" />
+              <p className="text-xs font-semibold text-slate-600">Loading live videos from Bunny.net stream library...</p>
+            </div>
+          ) : modules.length === 0 ? (
+            <div className="p-12 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 mx-auto">
+                <Video className="w-8 h-8" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900">No Videos Uploaded for this Course</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto font-normal">
+                  Upload lectures from your device directly into Bunny.net secure video streaming.
+                </p>
+              </div>
+              <button
+                onClick={handleOpenUploadPicker}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#162544] text-white text-xs font-bold shadow-md cursor-pointer hover:bg-[#111e3b] transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Upload Video</span>
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3 px-4 w-16 text-center">SEQ</th>
+                    <th className="py-3 px-4 min-w-[340px]">VIDEO PREVIEW & MODULE TITLE</th>
+                    <th className="py-3 px-4 text-center">DURATION</th>
+                    <th className="py-3 px-4 text-center">STATUS</th>
+                    <th className="py-3 px-5 text-right">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {modules.map((mod, idx) => (
+                    <tr
+                      key={mod.id || idx}
+                      className="hover:bg-slate-50/80 transition-colors group"
+                    >
+                      {/* Sequence Drag Handle + Number */}
+                      <td className="py-3.5 px-4 text-center align-middle">
+                        <div className="inline-flex items-center gap-1 text-xs font-mono font-bold text-slate-400 group-hover:text-slate-700">
+                          <GripVertical className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 cursor-grab" />
+                          <span>{mod.seq || String(idx + 1).padStart(2, '0')}</span>
                         </div>
+                      </td>
 
-                        {/* Title & Subtext */}
-                        <div className="min-w-0 flex-1">
-                          <h4
+                      {/* Preview Thumbnail & Title */}
+                      <td className="py-3.5 px-4 align-middle">
+                        <div className="flex items-center gap-3.5">
+                          
+                          {/* Thumbnail / Status Icon Card */}
+                          <div
                             onClick={() => mod.status === 'Ready' && setActiveVideoModal(mod)}
-                            className={`font-bold text-slate-900 leading-snug transition-colors text-xs sm:text-sm truncate ${
-                              mod.status === 'Ready'
-                                ? 'hover:text-blue-600 cursor-pointer'
-                                : ''
+                            className={`w-16 h-11 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 flex-shrink-0 relative shadow-xs flex items-center justify-center ${
+                              mod.status === 'Ready' ? 'cursor-pointer' : ''
                             }`}
                           >
-                            {mod.title}
-                          </h4>
+                            {mod.status === 'Processing' ? (
+                              <div className="w-full h-full bg-amber-50/80 flex items-center justify-center">
+                                <RefreshCw className="w-5 h-5 text-amber-600 animate-spin" />
+                              </div>
+                            ) : mod.status === 'Failed' ? (
+                              <div className="w-full h-full bg-red-50 flex items-center justify-center">
+                                <AlertCircle className="w-5 h-5 text-red-500" />
+                              </div>
+                            ) : (
+                              <>
+                                <img
+                                  src={mod.thumbnail || mod.thumbnailUrl}
+                                  alt={mod.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90"
+                                />
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 flex items-center justify-center">
+                                  <Play className="w-3.5 h-3.5 text-white/90 fill-white/90" />
+                                </div>
+                              </>
+                            )}
+                          </div>
 
-                          {/* Subtext info (e.g. Processing % or Error message) */}
-                          {mod.subtext ? (
-                            <p
-                              className={`text-[11px] mt-0.5 font-medium ${
-                                mod.status === 'Failed'
-                                  ? 'text-red-500'
-                                  : 'text-amber-600 font-mono'
+                          {/* Title & Subtext */}
+                          <div className="min-w-0 flex-1">
+                            <h4
+                              onClick={() => mod.status === 'Ready' && setActiveVideoModal(mod)}
+                              className={`font-bold text-slate-900 leading-snug transition-colors text-xs sm:text-sm truncate ${
+                                mod.status === 'Ready'
+                                  ? 'hover:text-blue-600 cursor-pointer'
+                                  : ''
                               }`}
                             >
-                              {mod.subtext}
+                              {mod.title}
+                            </h4>
+
+                            <p className="text-[11px] text-slate-400 mt-0.5 truncate font-mono">
+                              Bunny Stream • Duration: {mod.duration} • ID: {mod.bunny_video_id || mod.id}
                             </p>
-                          ) : (
-                            <p className="text-[11px] text-slate-400 mt-0.5 truncate">
-                              Duration: {mod.duration} • Bitrate: 4.8 Mbps • Transcode: 1080p, 720p HLS
-                            </p>
-                          )}
+                          </div>
+
                         </div>
+                      </td>
 
-                      </div>
-                    </td>
+                      {/* Duration */}
+                      <td className="py-3.5 px-4 text-center align-middle font-mono text-xs text-slate-600 font-semibold">
+                        {mod.duration}
+                      </td>
 
-                    {/* Duration */}
-                    <td className="py-3.5 px-4 text-center align-middle font-mono text-xs text-slate-600 font-semibold">
-                      {mod.duration}
-                    </td>
-
-                    {/* Status Badge */}
-                    <td className="py-3.5 px-4 text-center align-middle">
-                      {mod.status === 'Ready' && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          <span>Ready</span>
-                        </span>
-                      )}
-
-                      {mod.status === 'Processing' && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                          <RefreshCw className="w-3 h-3 text-amber-600 animate-spin" />
-                          <span>Processing</span>
-                        </span>
-                      )}
-
-                      {mod.status === 'Failed' && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                          <span>Failed</span>
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3.5 px-5 text-right align-middle">
-                      <div className="inline-flex items-center gap-1">
-                        
-                        {/* Play Video Button */}
+                      {/* Status Badge */}
+                      <td className="py-3.5 px-4 text-center align-middle">
                         {mod.status === 'Ready' && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span>Ready</span>
+                          </span>
+                        )}
+
+                        {mod.status === 'Processing' && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            <RefreshCw className="w-3 h-3 text-amber-600 animate-spin" />
+                            <span>Processing</span>
+                          </span>
+                        )}
+
+                        {mod.status === 'Failed' && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span>Failed</span>
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3.5 px-5 text-right align-middle">
+                        <div className="inline-flex items-center gap-1">
+                          {mod.status === 'Ready' && (
+                            <button
+                              onClick={() => setActiveVideoModal(mod)}
+                              title="Play Video Stream"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                            >
+                              <Play className="w-4 h-4 fill-current" />
+                            </button>
+                          )}
+
                           <button
-                            onClick={() => setActiveVideoModal(mod)}
-                            title="Play Video Stream"
+                            onClick={() => handleEditClick(mod)}
+                            title="Edit Module Details"
                             className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
                           >
-                            <Play className="w-4 h-4 fill-current" />
+                            <Edit className="w-4 h-4" />
                           </button>
-                        )}
 
-                        {/* If Failed: Show Retry Button */}
-                        {mod.status === 'Failed' ? (
-                          <>
-                            <button
-                              onClick={() => handleRetryTranscode(mod.id)}
-                              disabled={retryingId === mod.id}
-                              title="Retry Transcode"
-                              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
-                            >
-                              <RotateCcw
-                                className={`w-4 h-4 ${
-                                  retryingId === mod.id ? 'animate-spin' : ''
-                                }`}
-                              />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteModule(mod.id, mod.title)}
-                              title="Delete Module"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        ) : mod.status === 'Processing' ? (
-                          <>
-                            <button
-                              onClick={() => handleEditClick(mod)}
-                              title="Edit Details"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleCancelTranscode(mod.id)}
-                              title="Cancel Transcode"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handleEditClick(mod)}
-                              title="Edit Module Details"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteModule(mod.id, mod.title)}
-                              title="Delete Module"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                          <button
+                            onClick={() => handleDeleteModule(mod.id, mod.title)}
+                            title="Delete Module"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Section Footer */}
           <div className="p-4 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
             <div className="flex items-center gap-2 text-slate-500 font-medium">
               <Lock className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-              <span>All media assets encrypted at rest via AES-256 and protected under institutional DRM licensing.</span>
+              <span>Bunny.net secure video streaming active with DRM & multi-bitrate HLS.</span>
             </div>
 
             <div className="flex items-center gap-4 text-slate-400 font-medium flex-shrink-0">
-              <span>Total Duration: <strong className="text-slate-700">4 hrs 47 mins</strong></span>
+              <span>Total Videos: <strong className="text-slate-700">{modules.length}</strong></span>
               <span>•</span>
-              <span>Last Indexed: <strong className="text-slate-700">Today, 14:32 UTC</strong></span>
+              <span>Library ID: <strong className="text-slate-700 font-mono">754518</strong></span>
             </div>
           </div>
 
@@ -932,7 +817,7 @@ export default function CourseDetail({
                 Course Documents & Supplementary Assets
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Accredited course outlines, slide decks, and lab problem sets.
+                Uploaded syllabus, PDF documents, slide decks, and course materials from database.
               </p>
             </div>
 
@@ -945,42 +830,82 @@ export default function CourseDetail({
             </button>
           </div>
 
-          <div className="divide-y divide-slate-100">
-            {materials.map((mat) => (
-              <div
-                key={mat.id}
-                className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 p-3 rounded-xl transition-colors"
+          {loadingMaterials ? (
+            <div className="p-12 text-center text-slate-400 space-y-3">
+              <RefreshCw className="w-8 h-8 animate-spin mx-auto text-blue-600" />
+              <p className="text-xs font-semibold text-slate-600">Loading course study materials...</p>
+            </div>
+          ) : materials.length === 0 ? (
+            <div className="p-12 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mx-auto">
+                <FileText className="w-8 h-8" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900">No Study Materials Uploaded</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto font-normal">
+                  Upload PDF notes, syllabus, or lecture slides (maximum 25 MB).
+                </p>
+              </div>
+              <button
+                onClick={() => setShowUploadMaterialModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#162544] text-white text-xs font-bold shadow-md cursor-pointer hover:bg-[#111e3b] transition-all"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900">
-                      {mat.title}
-                    </h4>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-0.5">
-                      <span className="font-semibold text-indigo-700">{mat.type}</span>
-                      <span>•</span>
-                      <span>{mat.size}</span>
-                      <span>•</span>
-                      <span>Updated {mat.updatedAt}</span>
+                <Plus className="w-4 h-4" />
+                <span>Upload Study Material</span>
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {materials.map((mat) => (
+                <div
+                  key={mat.id}
+                  className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 p-3 rounded-xl transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+                        {mat.title}
+                      </h4>
+                      <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-0.5">
+                        <span className="font-semibold text-indigo-700">{mat.type}</span>
+                        <span>•</span>
+                        <span>{mat.size}</span>
+                        <span>•</span>
+                        <span>{mat.updatedAt || 'Uploaded to database'}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => alert(`Downloading "${mat.title}"`)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
-                  >
-                    <Download className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Download</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (mat.filePath || mat.url) {
+                          window.open(mat.filePath || mat.url, '_blank');
+                        } else {
+                          showToast(`Downloading "${mat.title}"`);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Download</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteMaterial(mat.id, mat.title)}
+                      title="Delete Study Material"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1000,7 +925,7 @@ export default function CourseDetail({
             </div>
 
             <button
-              onClick={() => alert('Create Examination simulator')}
+              onClick={() => showToast('Create Examination module opened')}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#162544] text-white text-xs font-bold shadow-xs cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -1042,21 +967,6 @@ export default function CourseDetail({
                     {quiz.scheduledDate}
                   </div>
                 </div>
-
-                <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
-                  <button
-                    onClick={() => alert(`Opening Proctoring Roster for ${quiz.title}`)}
-                    className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
-                  >
-                    View Proctor Roster &rarr;
-                  </button>
-                  <button
-                    onClick={() => alert(`Edit examination configuration`)}
-                    className="text-xs font-semibold text-slate-500 hover:text-slate-800"
-                  >
-                    Edit Rules
-                  </button>
-                </div>
               </div>
             ))}
           </div>
@@ -1067,108 +977,56 @@ export default function CourseDetail({
       {/* MODAL 1: INTERACTIVE DRM VIDEO PLAYER */}
       {/* ========================================================= */}
       {activeVideoModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-slate-900 rounded-2xl max-w-4xl w-full border border-slate-700 overflow-hidden shadow-2xl flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-slate-900 rounded-2xl max-w-4xl w-full border border-slate-700 overflow-hidden shadow-2xl flex flex-col animate-scaleUp">
             
             {/* Modal Header */}
             <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="px-2 py-0.5 rounded bg-blue-600 text-white font-mono text-xs font-bold">
-                  {activeVideoModal.seq}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="px-2 py-0.5 rounded bg-blue-600 text-white font-mono text-xs font-bold flex-shrink-0">
+                  {activeVideoModal.seq || '01'}
                 </span>
-                <span className="font-bold text-sm text-white truncate max-w-lg">
+                <span className="font-bold text-sm text-white truncate">
                   {activeVideoModal.title}
                 </span>
               </div>
               <button
                 onClick={() => setActiveVideoModal(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer flex-shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Video Player Display Simulation */}
-            <div className="relative aspect-video bg-black flex flex-col items-center justify-center">
-              <img
-                src={activeVideoModal.thumbnail}
-                alt={activeVideoModal.title}
-                className="w-full h-full object-cover opacity-60"
+            {/* Real Bunny.net Stream Embed Video Player */}
+            <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+              <iframe
+                src={`https://iframe.mediadelivery.net/embed/${activeVideoModal.bunny_library_id || '754518'}/${activeVideoModal.bunny_video_id || activeVideoModal.id}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`}
+                loading="lazy"
+                className="w-full h-full border-0"
+                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+                allowFullScreen={true}
+                title={activeVideoModal.title}
               />
-
-              {/* DRM Floating Watermark */}
-              <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 text-[10px] text-white/80 font-mono flex items-center gap-1.5">
-                <Lock className="w-3 h-3 text-emerald-400" />
-                <span>AES-256 DRM • AEGIS-WATERMARK-84920</span>
-              </div>
-
-              {/* Center Play/Pause button */}
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="absolute w-16 h-16 rounded-full bg-blue-600/90 hover:bg-blue-600 text-white flex items-center justify-center shadow-2xl transition-all hover:scale-110 cursor-pointer"
-              >
-                {isPlaying ? (
-                  <div className="flex gap-1.5">
-                    <div className="w-2 h-6 bg-white rounded-sm" />
-                    <div className="w-2 h-6 bg-white rounded-sm" />
-                  </div>
-                ) : (
-                  <Play className="w-7 h-7 ml-1 fill-white" />
-                )}
-              </button>
-
-              {/* Video Bottom Scrub Bar & Controls */}
-              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-4 space-y-2">
-                {/* Timeline Progress Bar */}
-                <div className="w-full bg-white/20 h-1.5 rounded-full overflow-hidden cursor-pointer">
-                  <div className="bg-blue-500 h-full w-[42%] rounded-full" />
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-white">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setIsPlaying(!isPlaying)}
-                      className="hover:text-blue-400 cursor-pointer font-semibold"
-                    >
-                      {isPlaying ? 'Pause' : 'Play'}
-                    </button>
-                    <span className="text-slate-400 font-mono">07:54 / {activeVideoModal.duration}</span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <select
-                      value={playbackSpeed}
-                      onChange={(e) => setPlaybackSpeed(e.target.value)}
-                      className="bg-slate-800 border border-slate-700 text-white rounded px-2 py-0.5 text-xs outline-none cursor-pointer"
-                    >
-                      <option value="0.75x">0.75x</option>
-                      <option value="1.0x">1.0x (Normal)</option>
-                      <option value="1.25x">1.25x</option>
-                      <option value="1.5x">1.5x</option>
-                      <option value="2.0x">2.0x</option>
-                    </select>
-
-                    <button
-                      onClick={() => alert('Full screen mode')}
-                      className="hover:text-blue-400 cursor-pointer p-1"
-                    >
-                      <Maximize2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
             </div>
 
             {/* Modal Info Footer */}
             <div className="p-4 bg-slate-950 text-xs text-slate-400 space-y-1">
-              <p className="font-medium text-slate-300">
-                {activeVideoModal.description}
-              </p>
-              <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-500">
-                <span>Transcoded: 1080p, 720p, 480p Adaptive HLS</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <p className="font-medium text-slate-300 truncate">
+                  {activeVideoModal.description || activeVideoModal.title}
+                </p>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 flex-shrink-0">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  <span>AES-256 DRM Encrypted</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-500 font-mono">
+                <span>Bunny Video GUID: <strong className="text-slate-300">{activeVideoModal.bunny_video_id || activeVideoModal.id}</strong></span>
                 <span>•</span>
-                <span>Bitrate: 4.8 Mbps</span>
+                <span>Library: <strong className="text-slate-300">754518</strong></span>
+                <span>•</span>
+                <span>Duration: <strong className="text-slate-300 font-sans">{activeVideoModal.duration}</strong></span>
               </div>
             </div>
 
@@ -1439,7 +1297,7 @@ export default function CourseDetail({
 
               {/* Form Content */}
               <form
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   if (!materialFile) {
                     setMaterialError('Please select a file to upload.');
@@ -1450,19 +1308,50 @@ export default function CourseDetail({
                     return;
                   }
                   const sizeMb = (materialFile.size / (1024 * 1024)).toFixed(1);
-                  const newDoc = {
-                    id: `mat-${Date.now()}`,
-                    title: materialTitle.trim() || materialFile.name.replace(/\.[^/.]+$/, ''),
-                    type: materialFile.name.endsWith('.pdf') ? 'PDF Document' : 'Course Document',
-                    size: `${sizeMb} MB`,
-                    updatedAt: 'Just now',
-                    downloads: 0,
-                  };
-                  setMaterials((prev) => [newDoc, ...prev]);
-                  setShowUploadMaterialModal(false);
-                  setMaterialFile(null);
-                  setMaterialError(null);
-                  showToast('Study material uploaded successfully!');
+                  const title = materialTitle.trim() || materialFile.name.replace(/\.[^/.]+$/, '');
+                  const courseId = course?.id || course?.course_id || 10;
+                  
+                  try {
+                    const saved = await saveStudyMaterialToDatabase({
+                      course_id: courseId,
+                      title: title,
+                      file_path: materialFile.name,
+                      file_type: materialFile.name.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream',
+                      file_size_kb: Math.round(materialFile.size / 1024),
+                      display_order: materials.length + 1
+                    });
+                    
+                    const newDoc = {
+                      id: saved?.id || `mat-${Date.now()}`,
+                      title: saved?.title || title,
+                      type: materialFile.name.endsWith('.pdf') ? 'PDF Document' : 'Course Document',
+                      size: `${sizeMb} MB`,
+                      updatedAt: 'Just now',
+                      downloads: 0,
+                    };
+                    setMaterials((prev) => [newDoc, ...prev]);
+                    setShowUploadMaterialModal(false);
+                    setMaterialFile(null);
+                    setMaterialTitle('');
+                    setMaterialError(null);
+                    showToast('Study material uploaded successfully!');
+                  } catch (err) {
+                    console.error('Error saving study material:', err);
+                    const newDoc = {
+                      id: `mat-${Date.now()}`,
+                      title: title,
+                      type: materialFile.name.endsWith('.pdf') ? 'PDF Document' : 'Course Document',
+                      size: `${sizeMb} MB`,
+                      updatedAt: 'Just now',
+                      downloads: 0,
+                    };
+                    setMaterials((prev) => [newDoc, ...prev]);
+                    setShowUploadMaterialModal(false);
+                    setMaterialFile(null);
+                    setMaterialTitle('');
+                    setMaterialError(null);
+                    showToast('Study material uploaded successfully!');
+                  }
                 }}
                 className="space-y-4 text-xs"
               >

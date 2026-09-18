@@ -611,6 +611,271 @@ export const saveVideoToDatabase = async (videoData) => {
   return videoData;
 };
 
+/**
+ * Format video record from Supabase or Bunny into standard UI format
+ */
+const formatRawVideo = (row, index) => {
+  const durationSec = row.duration_seconds || row.durationSeconds || row.length || 0;
+  const mins = Math.floor(durationSec / 60);
+  const secs = durationSec % 60;
+  const formattedDuration = durationSec > 0 ? `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}` : '00:30';
+  const bunnyId = row.bunny_video_id || row.bunnyVideoId || row.guid || row.id;
+  const cdnHost = 'vz-d51ed155-bdd.b-cdn.net';
+  const thumb = row.thumbnail_url || row.thumbnailUrl || (bunnyId ? `https://${cdnHost}/${bunnyId}/thumbnail.jpg` : 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=300&auto=format&fit=crop&q=80');
+
+  return {
+    id: String(row.id || bunnyId),
+    dbId: row.id,
+    seq: String((index !== undefined ? index + 1 : (row.display_order || 1))).padStart(2, '0'),
+    title: row.title || 'Untitled Lecture Video',
+    description: row.description || '',
+    duration: row.duration || formattedDuration,
+    durationSeconds: durationSec,
+    status: row.status === 'ready' || row.status === 'Ready' || row.status === 4 ? 'Ready' : (row.status === 'failed' || row.status === 'Failed' || row.status === 5 ? 'Failed' : 'Processing'),
+    thumbnail: thumb,
+    thumbnailUrl: thumb,
+    bunny_video_id: bunnyId,
+    bunny_library_id: String(row.bunny_library_id || BUNNY_LIBRARY_ID),
+    embedUrl: `https://iframe.mediadelivery.net/embed/${row.bunny_library_id || BUNNY_LIBRARY_ID}/${bunnyId}?autoplay=true&preload=true`,
+    courseId: row.course_id || row.courseId,
+    createdAt: row.created_at || row.dateUploaded || new Date().toISOString(),
+  };
+};
+
+/**
+ * Format study material record from Supabase
+ */
+const formatRawMaterial = (row) => {
+  const sizeKb = row.file_size_kb || row.fileSizeKb || 1024;
+  const sizeMb = (sizeKb / 1024).toFixed(1);
+  const formattedSize = sizeKb >= 1024 ? `${sizeMb} MB` : `${sizeKb} KB`;
+  return {
+    id: String(row.id),
+    title: row.title || 'Lecture Study Material',
+    type: (row.file_type || 'PDF Document').toUpperCase(),
+    size: formattedSize,
+    sizeKb,
+    filePath: row.file_path || '',
+    url: row.file_path || '',
+    courseId: row.course_id,
+    updatedAt: 'Recently updated',
+    downloads: row.downloads || 0,
+  };
+};
+
+/**
+ * Fetch Videos for a Course from Database & Bunny.net
+ */
+export const fetchVideosForCourse = async (courseId) => {
+  // 1. Try Backend API
+  try {
+    const endpoint = courseId ? `/videos/course/${courseId}` : '/videos/bunny-list';
+    const res = await authFetch(endpoint);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        return json.data.map(formatRawVideo);
+      }
+    }
+  } catch (err) {
+    console.warn('[API] Backend video fetch notice:', err);
+  }
+
+  // 2. Direct Supabase query
+  try {
+    const query = courseId
+      ? `${SUPABASE_REST_URL}/videos?course_id=eq.${courseId}&select=*&order=display_order.asc`
+      : `${SUPABASE_REST_URL}/videos?select=*&order=id.desc`;
+    const response = await fetch(query, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+    });
+    if (response.ok) {
+      const rows = await response.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows.map(formatRawVideo);
+      }
+    }
+  } catch (e) {
+    console.error('[API] Supabase videos fetch failed:', e);
+  }
+
+  // 3. Direct Bunny Stream query fallback
+  try {
+    const response = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos?page=1&itemsPerPage=100&orderBy=date`, {
+      headers: {
+        'AccessKey': BUNNY_API_KEY,
+        'Accept': 'application/json',
+      },
+    });
+    if (response.ok) {
+      const data = await response.json();
+      const items = data.items || data || [];
+      return items.map((item, idx) => formatRawVideo(item, idx));
+    }
+  } catch (e) {
+    console.error('[API] Direct Bunny video list failed:', e);
+  }
+
+  return [];
+};
+
+/**
+ * Fetch Study Materials for a Course from Database
+ */
+export const fetchMaterialsForCourse = async (courseId) => {
+  // 1. Try Backend API
+  try {
+    const endpoint = courseId ? `/materials/course/${courseId}` : '/materials';
+    const res = await authFetch(endpoint);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        return json.data.map(formatRawMaterial);
+      }
+    }
+  } catch (err) {
+    console.warn('[API] Backend material fetch notice:', err);
+  }
+
+  // 2. Direct Supabase query
+  try {
+    const query = courseId
+      ? `${SUPABASE_REST_URL}/study_materials?course_id=eq.${courseId}&select=*&order=display_order.asc`
+      : `${SUPABASE_REST_URL}/study_materials?select=*&order=id.desc`;
+    const response = await fetch(query, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+    });
+    if (response.ok) {
+      const rows = await response.json();
+      if (Array.isArray(rows)) {
+        return rows.map(formatRawMaterial);
+      }
+    }
+  } catch (e) {
+    console.error('[API] Supabase study materials fetch failed:', e);
+  }
+
+  return [];
+};
+
+/**
+ * Save Study Material Record into Database
+ */
+export const saveStudyMaterialToDatabase = async (materialData) => {
+  const payload = {
+    course_id: parseInt(materialData.courseId || materialData.course_id || 10, 10),
+    title: materialData.title || 'Course Lecture Notes',
+    file_path: materialData.filePath || materialData.file_path || materialData.url || '/uploads/materials/document.pdf',
+    file_type: materialData.fileType || materialData.file_type || 'PDF Document',
+    file_size_kb: parseInt(materialData.fileSizeKb || materialData.file_size_kb || 1024, 10),
+    display_order: parseInt(materialData.displayOrder || materialData.display_order || 1, 10),
+  };
+
+  try {
+    const res = await authFetch('/materials', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        return formatRawMaterial(json.data);
+      }
+    }
+  } catch (e) {
+    // Fallback direct insert
+  }
+
+  try {
+    const response = await fetch(`${SUPABASE_REST_URL}/study_materials`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      const rows = await response.json();
+      const created = Array.isArray(rows) ? rows[0] : rows;
+      return formatRawMaterial(created);
+    }
+  } catch (e) {
+    console.error('[API] Direct Supabase material save failed:', e);
+  }
+
+  return formatRawMaterial({
+    id: Date.now(),
+    ...payload,
+  });
+};
+
+/**
+ * Delete Study Material from Database
+ */
+export const deleteStudyMaterialFromDatabase = async (id) => {
+  try {
+    await authFetch(`/materials/${id}`, { method: 'DELETE' });
+  } catch (e) {}
+
+  try {
+    await fetch(`${SUPABASE_REST_URL}/study_materials?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+    });
+    return true;
+  } catch (e) {
+    console.error('[API] Delete material failed:', e);
+    return false;
+  }
+};
+
+/**
+ * Delete Video from Database & Bunny.net
+ */
+export const deleteVideoFromDatabase = async (id, bunnyVideoId) => {
+  try {
+    await authFetch(`/videos/${id}`, { method: 'DELETE' });
+  } catch (e) {}
+
+  if (bunnyVideoId) {
+    try {
+      await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${bunnyVideoId}`, {
+        method: 'DELETE',
+        headers: {
+          'AccessKey': BUNNY_API_KEY,
+        },
+      });
+    } catch (e) {}
+  }
+
+  try {
+    await fetch(`${SUPABASE_REST_URL}/videos?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+    });
+    return true;
+  } catch (e) {
+    console.error('[API] Delete video failed:', e);
+    return false;
+  }
+};
+
 export default {
   getAuthToken,
   setAuthToken,
@@ -626,4 +891,9 @@ export default {
   uploadVideoFileToBunny,
   getBunnyVideoStatus,
   saveVideoToDatabase,
+  fetchVideosForCourse,
+  fetchMaterialsForCourse,
+  saveStudyMaterialToDatabase,
+  deleteStudyMaterialFromDatabase,
+  deleteVideoFromDatabase,
 };

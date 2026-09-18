@@ -295,6 +295,93 @@ export const supabaseService = {
       return false;
     }
   },
+
+  /**
+   * ==========================================
+   * STUDY MATERIAL OPERATIONS
+   * ==========================================
+   */
+
+  /**
+   * Fetch study materials for a course from Supabase
+   */
+  async getStudyMaterials(courseId = null) {
+    try {
+      const baseUrl = getBaseUrl();
+      const query = courseId
+        ? `${baseUrl}/study_materials?course_id=eq.${courseId}&select=*&order=display_order.asc`
+        : `${baseUrl}/study_materials?select=*&order=id.desc`;
+
+      const response = await fetch(query, {
+        headers: getHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch study materials from Supabase: ${response.statusText}`);
+      }
+
+      const rows = await response.json();
+      return Array.isArray(rows) ? rows : [];
+    } catch (error) {
+      logger.error('[SupabaseService.getStudyMaterials Error]', { error: error.message });
+      return [];
+    }
+  },
+
+  /**
+   * Create study material record in Supabase
+   */
+  async createStudyMaterial(materialData) {
+    try {
+      const baseUrl = getBaseUrl();
+      const payload = {
+        course_id: parseInt(materialData.course_id || materialData.courseId || 10, 10),
+        title: materialData.title || 'Course Lecture Notes',
+        file_path: materialData.file_path || materialData.filePath || materialData.url || '/uploads/materials/notes.pdf',
+        file_type: materialData.file_type || materialData.fileType || 'pdf',
+        file_size_kb: parseInt(materialData.file_size_kb || materialData.fileSizeKb || 1024, 10),
+        display_order: parseInt(materialData.display_order || materialData.displayOrder || 1, 10),
+      };
+
+      const response = await fetch(`${baseUrl}/study_materials`, {
+        method: 'POST',
+        headers: {
+          ...getHeaders(),
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Failed to insert study material into Supabase: ${response.statusText} - ${errText}`);
+      }
+
+      const result = await response.json();
+      return Array.isArray(result) ? result[0] : result;
+    } catch (error) {
+      logger.error('[SupabaseService.createStudyMaterial Error]', { error: error.message });
+      throw error;
+    }
+  },
+
+  /**
+   * Delete study material from Supabase
+   */
+  async deleteStudyMaterial(id) {
+    try {
+      const baseUrl = getBaseUrl();
+      const response = await fetch(`${baseUrl}/study_materials?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+
+      return response.ok;
+    } catch (error) {
+      logger.error('[SupabaseService.deleteStudyMaterial Error]', { error: error.message });
+      return false;
+    }
+  },
 };
 
 export default supabaseService;

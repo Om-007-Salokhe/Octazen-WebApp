@@ -159,6 +159,64 @@ export const bunnyService = {
       throw error;
     }
   },
+
+  /**
+   * List all videos in Bunny.net Stream library
+   */
+  async listVideos() {
+    try {
+      const libraryId = env.BUNNY_STREAM_LIBRARY_ID || '754518';
+      const apiKey = env.BUNNY_STREAM_API_KEY || env.BUNNY_API_KEY;
+
+      if (!libraryId || !apiKey) {
+        return [];
+      }
+
+      const response = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos?page=1&itemsPerPage=100&orderBy=date`, {
+        headers: {
+          AccessKey: apiKey,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to list Bunny videos: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const items = data.items || data || [];
+      const cdnHostname = env.BUNNY_CDN_HOSTNAME || 'vz-d51ed155-bdd.b-cdn.net';
+
+      return items.map((item, idx) => {
+        const length = item.length || 0;
+        const mins = Math.floor(length / 60);
+        const secs = length % 60;
+        const formattedDuration = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        const guid = item.guid;
+        const thumb = `https://${cdnHostname}/${guid}/${item.thumbnailFileName || 'thumbnail.jpg'}`;
+
+        return {
+          id: guid,
+          guid: guid,
+          bunny_video_id: guid,
+          bunny_library_id: String(libraryId),
+          title: item.title || `Lecture Video ${idx + 1}`,
+          duration_seconds: length,
+          duration: formattedDuration,
+          status: item.status === 4 ? 'Ready' : (item.status === 5 ? 'Failed' : 'Processing'),
+          statusText: item.status === 4 ? 'Ready' : (item.status === 5 ? 'Failed' : 'Processing'),
+          thumbnail_url: thumb,
+          thumbnail: thumb,
+          embedUrl: `https://iframe.mediadelivery.net/embed/${libraryId}/${guid}?autoplay=true&preload=true`,
+          views: item.views || 0,
+          createdAt: item.dateUploaded,
+        };
+      });
+    } catch (error) {
+      logger.error('[BunnyService.listVideos Error]', { error: error.message });
+      return [];
+    }
+  },
 };
 
 export default bunnyService;
